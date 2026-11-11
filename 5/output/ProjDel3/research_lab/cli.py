@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 import psycopg
 from psycopg import sql
 
-from .reports import REPORTS, run_report
+from .reports import REPORTS, run_report, run_report_all
 from .service import LabService, TABLES, SUBCLASSES
 
 
@@ -333,6 +333,7 @@ class Terminal:
     def report(self,name):
         definition = REPORTS[name]
         params = []
+        list_all = False
         for key in definition['params']:
             if key=='end_before':
                 while True:
@@ -342,9 +343,16 @@ class Terminal:
                     except ValueError as error:
                         print(error)
             else:
-                params.append(input(f'{LABELS.get(key,key)} ({key}): ').strip())
+                suffix = '，留空列出全部' if definition.get('all_sql') else ''
+                raw = input(f'{LABELS.get(key,key)} ({key}){suffix}: ').strip()
+                if not raw and definition.get('all_sql'):
+                    list_all = True
+                params.append(raw)
         print(f'\n【{definition["title"]}】')
-        display_rows(run_report(self.conn,name,tuple(params)))
+        if list_all:
+            display_rows(run_report_all(self.conn,name))
+        else:
+            display_rows(run_report(self.conn,name,tuple(params)))
 
     def submenu(self,title,choices):
         while True:

@@ -33,7 +33,8 @@ def initialize(conn, schema):
             raise ValueError(f'schema {schema} 已存在，初始化不会覆盖；请直接启动或换一个新名称')
         conn.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
         conn.execute(sql.SQL('SET LOCAL search_path TO {}').format(sql.Identifier(schema)))
-        for name in ['01_create_tables.sql', '02_integrity.sql', '03_sample_data.sql']:
+        for name in ['01_create_tables.sql', '02_integrity.sql', '03_sample_data.sql',
+                     '05_views.sql']:
             source = (ROOT / 'SQL' / name).read_text(encoding='utf-8')
             # The standalone seed is transactional; run inside this one outer transaction.
             if name == '03_sample_data.sql':

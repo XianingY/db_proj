@@ -31,7 +31,12 @@ def main():
                     print(f'初始化成功：schema={args.schema}；原有 schema/业务数据未覆盖。')
                 check_ready(conn)
             from research_lab.web import serve
-            serve(args.dsn,args.schema,args.port)
+            try:
+                serve(args.dsn,args.schema,args.port)
+            except OSError as error:
+                print(f'网页服务启动失败：{error}',file=sys.stderr)
+                print('端口可能被占用；改用 --port 0 自动选择空闲端口。',file=sys.stderr)
+                return 1
             return 0
         with connect(args.dsn,args.schema) as conn:
             if args.init:

@@ -13,6 +13,7 @@
 | `SQL/02_integrity.sql` | 跨表、设备时间/状态及并发完整性 |
 | `SQL/03_sample_data.sql` | 13 张表的显式 INSERT 样例；一个事务全部导入 |
 | `SQL/04_report_queries.sql` | 原题全部十项查询，可用 psql 单独执行 |
+| `SQL/05_views.sql` | 4 个附加只读视图（psql 中 `\dv` 可见），报表口径不依赖视图 |
 | `tests/` | 业务、真实终端、报表、双连接并发测试 |
 | `scripts/bootstrap.sh` | 一键准备 Python/PostgreSQL 环境、初始化并自检 |
 | `evidence/` | 独立参考答案、真实运行日志、数据库结果和截图 |

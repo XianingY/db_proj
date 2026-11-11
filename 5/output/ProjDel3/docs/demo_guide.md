@@ -53,4 +53,16 @@ sh scripts/bootstrap.sh --check
 
 ## 四、证据与收尾
 
+收尾时可在 `psql` 中 `\dv` 展示 4 个附加只读视图（SQL/05_views.sql），说明报表口径不依赖视图。
+
 展示 `evidence/unittest.log`、`verification.json` 及 SQL/03_sample_data.sql 各表 INSERT。程序退出选择 0。演示时自己新增的对象请通过菜单删除；不要重新初始化或 TRUNCATE 默认实例。课程要求期末现场演示及预约时间，提交包不会替代现场演示，也未替你预约。
+
+## 五、现场故障速查
+
+| 现象 | 处置 |
+| --- | --- |
+| `--web` 报端口占用 | 改用 `.venv/bin/python app.py --web --port 0`，以服务打印的地址为准 |
+| 启动报数据库未初始化 | `sh scripts/bootstrap.sh`：只初始化缺失 schema，不覆盖已有 |
+| PostgreSQL 没起 | macOS：`brew services start postgresql@18`；其他系统 bootstrap 会用 docker/podman 起容器 |
+| 终端表格折行难看 | 窗口拉宽到 ≥100 列；网页版不受终端宽度影响 |
+| 网页打不开 | 确认服务终端仍在前台；地址以服务打印的为准，仅 127.0.0.1 可达 |

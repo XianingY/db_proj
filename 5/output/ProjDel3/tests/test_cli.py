@@ -68,6 +68,15 @@ class TerminalTests(unittest.TestCase):
         self.assertIsNone(self.conn.execute("SELECT 1 FROM equipment WHERE equipment_id='CLI_EQ'").fetchone())
         self.assertIsNone(self.conn.execute("SELECT 1 FROM equipment_usage WHERE usage_id='CLI_USE'").fetchone())
 
+    def test_empty_parameter_lists_all_statuses(self):
+        result = self.terminal(['1','3','','0','2','3','','0','0'])
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn('P001', result.stdout)
+        self.assertIn('E001', result.stdout)
+        self.assertIn('共 10 条记录', result.stdout)
+        self.assertIn('共 6 条记录', result.stdout)
+        self.assertNotIn('操作失败', result.stdout)
+
     def test_read_only_demo(self):
         result = self.terminal([], '--demo')
         self.assertEqual(result.returncode,0,result.stderr+result.stdout)

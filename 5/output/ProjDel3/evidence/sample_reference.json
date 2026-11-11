@@ -29,7 +29,7 @@
     "equipment_usage": 36,
     "publication": 30,
     "authorship": 144,
-    "mentorship": 14
+    "mentorship": 15
   },
   "reports": {
     "project_status": {
@@ -1031,6 +1031,18 @@
         "PUB027"
       ],
       "mentee_authorship_row_count": 6
+    },
+    {
+      "mentor_id": "S007",
+      "mentee_ids": [
+        "C001"
+      ],
+      "publication_count": 2,
+      "publication_ids": [
+        "PUB003",
+        "PUB019"
+      ],
+      "mentee_authorship_row_count": 2
     }
   ],
   "student_publications_by_year": [

@@ -88,36 +88,69 @@ fi
 add_pg_bin
 
 step "检查 PostgreSQL"
+CONTAINER_PSQL=""
 if ! command -v psql >/dev/null 2>&1; then
     if [ "$CHECK_ONLY" = 1 ]; then die "找不到 psql；请安装 PostgreSQL 14+ 后重试"; fi
-    if ! command -v brew >/dev/null 2>&1; then
-        die "找不到 psql，也没有 Homebrew 可自动安装；请手动安装 PostgreSQL 14+"
+    if command -v brew >/dev/null 2>&1; then
+        printf '未检测到 PostgreSQL，使用 Homebrew 安装 postgresql@18\n'
+        brew install postgresql@18
+        add_pg_bin
+    else
+        # Linux / 无 Homebrew 回退：用 docker 或 podman 起一个一次性 postgres 容器
+        RUNTIME=""
+        if command -v docker >/dev/null 2>&1; then RUNTIME=docker
+        elif command -v podman >/dev/null 2>&1; then RUNTIME=podman
+        fi
+        if [ -z "$RUNTIME" ]; then
+            die "找不到 psql，且没有 Homebrew / docker / podman 可用；请手动安装 PostgreSQL 14+"
+        fi
+        printf '本机没有 psql 与 Homebrew，改用 %s 启动 postgres:18 容器 lab_pg_demo\n' "$RUNTIME"
+        if ! $RUNTIME ps --format '{{.Names}}' 2>/dev/null | grep -qx 'lab_pg_demo'; then
+            $RUNTIME rm -f lab_pg_demo >/dev/null 2>&1 || true
+            $RUNTIME run -d --name lab_pg_demo \
+                -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:18 >/dev/null
+        fi
+        DSN='host=127.0.0.1 port=5432 dbname=postgres user=postgres'
+        export LAB_DSN="$DSN"
+        CONTAINER_PSQL="$RUNTIME exec -i lab_pg_demo psql -U postgres"
     fi
-    printf '未检测到 PostgreSQL，使用 Homebrew 安装 postgresql@18\n'
-    brew install postgresql@18
-    add_pg_bin
 fi
 
-if ! pg_isready -q >/dev/null 2>&1; then
+# psql 客户端解析：宿主机优先，其次容器内 psql（$PSQL_CLI 故意不加引号以分词）
+if command -v psql >/dev/null 2>&1; then
+    PSQL_CLI="psql -d $DSN"
+else
+    PSQL_CLI="$CONTAINER_PSQL -d postgres"
+fi
+
+pg_ready() {
+    if command -v pg_isready >/dev/null 2>&1; then
+        pg_isready -q >/dev/null 2>&1
+    else
+        $PSQL_CLI -tAc 'select 1' >/dev/null 2>&1
+    fi
+}
+
+if ! pg_ready; then
     if [ "$CHECK_ONLY" = 1 ]; then die "PostgreSQL 未在监听；先启动服务再自检"; fi
     if command -v brew >/dev/null 2>&1 && brew services list 2>/dev/null | grep -q postgresql; then
         printf '启动 PostgreSQL 服务\n'
         brew services start postgresql@18 >/dev/null 2>&1 || brew services start postgresql@17 >/dev/null
-    else
+    elif [ -z "$CONTAINER_PSQL" ]; then
         die "PostgreSQL 未在监听，且无法自动启动；请手动启动后重试"
     fi
     tries=0
-    until pg_isready -q >/dev/null 2>&1; do
+    until pg_ready; do
         tries=$((tries + 1))
-        if [ "$tries" -gt 30 ]; then die "PostgreSQL 启动超时"; fi
+        if [ "$tries" -gt 60 ]; then die "PostgreSQL 启动超时"; fi
         sleep 1
     done
 fi
-printf 'PostgreSQL 就绪：%s\n' "$(psql -d "$DSN" -tAc 'SHOW server_version' 2>/dev/null || echo '未知版本')"
+printf 'PostgreSQL 就绪：%s\n' "$($PSQL_CLI -tAc 'SHOW server_version' 2>/dev/null || echo '未知版本')"
 
 # -------------------------------------------------------------------- schema
 step "检查 schema $SCHEMA"
-EXISTS=$(psql -d "$DSN" -tAc "SELECT count(*) FROM pg_namespace WHERE nspname='$SCHEMA'" 2>/dev/null || echo 0)
+EXISTS=$($PSQL_CLI -tAc "SELECT count(*) FROM pg_namespace WHERE nspname='$SCHEMA'" 2>/dev/null || echo 0)
 if [ "$EXISTS" = "1" ]; then
     printf 'schema 已存在，按设计不覆盖、不重新导入\n'
 elif [ "$CHECK_ONLY" = 1 ]; then

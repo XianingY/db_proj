@@ -12,7 +12,7 @@ device (具体装置): 12
 equipment_usage (设备使用记录): 36
 publication (学术成果): 30
 authorship (成果作者): 144
-mentorship (指导关系): 14
+mentorship (指导关系): 15
 
 === project_status | 项目状态 ===
 参数: P001

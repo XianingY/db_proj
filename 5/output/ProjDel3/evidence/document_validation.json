@@ -1,10 +1,10 @@
 {
   "status": "passed",
-  "pdf_pages": 17,
-  "pdf_bytes": 492751,
+  "pdf_pages": 18,
+  "pdf_bytes": 495136,
   "docx_tables": 15,
   "docx_tables_expected": 15,
-  "unittest_count_in_documents": 70,
+  "unittest_count_in_documents": 74,
   "docx_images": 2,
   "all_ten_report_sql_keys_present": true,
   "required_content_present_in_all_formats": true,
@@ -17,7 +17,7 @@
     "/AAAAAD+STSongti-SC-Regular-6"
   ],
   "text_bounds": {
-    "word_count": 2035,
+    "word_count": 2335,
     "all_words_inside_page": true
   },
   "manual_render_review_pages": [

@@ -1,10 +1,10 @@
 {
-  "verified_at": "2026-11-11T17:04:33.448759+08:00",
+  "verified_at": "2026-11-11T17:34:47.132977+08:00",
   "python": "3.13.18",
   "postgresql": "18.6 (Homebrew)",
   "schema_isolation": "fresh random schema",
   "status": "passed",
-  "unittest_count": 70,
+  "unittest_count": 74,
   "unittest_exit_code": 0,
   "standalone_sql_exit_code": 0,
   "terminal_demo_exit_code": 0,
@@ -51,9 +51,9 @@
     "equipment_usage": 36,
     "publication": 30,
     "authorship": 144,
-    "mentorship": 14
+    "mentorship": 15
   },
-  "total_sample_tuples": 384,
+  "total_sample_tuples": 385,
   "reports": {
     "project_status": {
       "params": [
@@ -874,6 +874,7 @@
       "matches_reference": true
     }
   },
+  "standalone_sql_rows_match_reference": true,
   "source_create_tables_sha256": "f1c168d32325d206cf912c11581fd338ae71a7dd8c37953fc205a7e55ae32ac8",
   "concurrency_test": "two real sessions; fourth waits, third commits, fourth rejected with 23514",
   "no_existing_business_data_overwritten": true

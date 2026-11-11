@@ -65,6 +65,39 @@ def main():
                 cwd=ROOT,env=env,text=True,capture_output=True,timeout=30)
             (evidence/'standalone_sql.log').write_text(standalone.stdout+standalone.stderr,encoding='utf-8')
             assert standalone.returncode==0,'独立 SQL 执行失败'
+            machine=subprocess.run(['psql','-d',os.environ.get('LAB_DSN','dbname=postgres'),
+                '-v','ON_ERROR_STOP=1','-P','pager=off','-A','-F','|','-t',
+                '-v','project_id=P005','-v','grant_id=G001','-v','equipment_id=E001',
+                '-v','end_before=2025-01-01','-f','SQL/04_report_queries.sql'],
+                cwd=ROOT,env=env,text=True,capture_output=True,timeout=30)
+            assert machine.returncode==0,'机器可读独立 SQL 执行失败'
+            lines=[line for line in machine.stdout.splitlines() if line.strip()]
+            order=['project_status','grant_members','shared_project_mentorship',
+                   'equipment_status','equipment_current_users','top_funded_projects',
+                   'mentor_publications','student_publications_by_major_year',
+                   'ended_projects','top_student_years']
+            # The program rows were already asserted equal to the independent
+            # reference above; comparing the standalone SQL file against the
+            # program rows therefore pins file == program == reference.
+            lines=[line for line in machine.stdout.splitlines() if line.strip()]
+            order=['project_status','grant_members','shared_project_mentorship',
+                   'equipment_status','equipment_current_users','top_funded_projects',
+                   'mentor_publications','student_publications_by_major_year',
+                   'ended_projects','top_student_years']
+            position=0
+            mismatch=[]
+            for name in order:
+                for row in results[name]['rows']:
+                    want='|'.join('' if value is None else str(value)
+                                  for key,value in row.items() if key!='devices')
+                    got=lines[position] if position<len(lines) else '<missing>'
+                    if 'devices' in row:
+                        got=got.rsplit('|',1)[0]
+                    if want!=got:
+                        mismatch.append((name,want,got))
+                    position+=1
+            assert not mismatch,('独立 SQL 行与程序/参考不一致',mismatch[:3])
+            assert position==len(lines),('独立 SQL 行数不一致',position,len(lines))
             demo=subprocess.run([sys.executable,'app.py','--schema',schema,'--demo'],
                 cwd=ROOT,text=True,capture_output=True,timeout=30)
             assert demo.returncode==0,demo.stderr
@@ -90,6 +123,7 @@ def main():
                 'terminal_demo_successful_mutations':3,'terminal_demo_expected_rejections':1,
                 'primary_key_count':13,'foreign_key_count':14,'constraints':constraint_counts,
                 'table_counts':counts,'total_sample_tuples':sum(counts.values()),'reports':results,
+                'standalone_sql_rows_match_reference':True,
                 'source_create_tables_sha256':hashlib.sha256((ROOT/'SQL/01_create_tables.sql').read_bytes()).hexdigest(),
                 'concurrency_test':'two real sessions; fourth waits, third commits, fourth rejected with 23514',
                 'no_existing_business_data_overwritten':True}

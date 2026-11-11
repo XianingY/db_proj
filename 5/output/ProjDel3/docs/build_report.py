@@ -91,6 +91,7 @@ def report_blocks():
         ['写入协调','READ COMMITTED + 统一事务 advisory lock，装置行锁','小型实验室写入串行化，防止不同事务分别检查后产生写偏斜。'],
         ['TRUNCATE 防护','13 表增加 BEFORE TRUNCATE 拒绝触发器','TRUNCATE 不触发普通行级检查，故禁止通过清空关系表留下无作者成果。'],
         ['性能辅助','六个外键/时间查询索引','提高项目、作者、指导者及使用区间查询效率；不改变关系结构或业务语义。'],
+        ['附加只读视图','SQL/05_views.sql 创建四个视图：项目资助总额、装置当前使用、学生成果年统计、导师成果合计','落实课件视图章节并给 psql 演示附加入口；十项报表仍直接查基表，口径不变。'],
         ['当前项目口径','当前设备用户只关联 status=active 的参与项目','不把已完成和暂停项目展示成正在工作；没有 active 项目的使用者仍保留。']])
     para('未修订的假设包括：每名成员至少参加一个项目；负责人必须参加其项目；设备至少有一台装置；成果至少有一名实验室作者；每名被指导者最多保留一段指导记录（mentee_id 主键，结束后也不新存下一段）；不自我指导、学生不指导教师；DOI 可空且不强制唯一。成员在一个项目中仅有一条保存的参与记录，未新增完整工作经历流水。')
     sub('2.3 课程规范化思想的应用边界')
@@ -216,6 +217,13 @@ def report_blocks():
     para('本阶段将原概念与逻辑模式落为真实 PostgreSQL 实例及可运行菜单应用，提供所有原题 CRUD 和十项查询，通过关系、时间、并发和报表边界验证。结构修订限于预算约定、完整性机制及索引，原表/键/字段保持一致。随包 README 和演示指南给出复现方法，PDF/DOCX 报告、样例 SQL、源程序及真实证据构成第三次小组作业提交。')
     para('课程引用均为用户提供的本地课件，不引用外部答案：07-ERtoRelational.pdf（超类/子类、弱实体、联系映射）；08-09(3)-SQLComplexQueries-AdvancedIssues-full.pdf 第 27 页（COUNT DISTINCT）及聚集分组/外连接章节；08-09(4)-SQL-Constraints-Plus-Landscape.pdf 第 3–5 页（完全参与、复杂约束与 EXISTS/NOT EXISTS 断言思想）；100(1)-FDs-Landscape.pdf 与 100(2)-NFs.pdf 第 7–12 页（依赖及规范化）；110-SchemaDecomposition - landscape.pdf 第 4–6 页（无损连接和保持依赖的区别）。页码为 PDF 实际页序。')
     para('课件的数据库全局断言思想在此实现为 PostgreSQL 延迟触发器与显式检查，而非提交仅能书写、未验证可运行的标准断言。功能与边界的判断以本包实际运行结果为证据。')
+    add('pagebreak','')
+    h('Executive Summary (English)')
+    para('Deliverable 3 implements the Research Lab Manager as a running PostgreSQL 18 instance plus a menu-driven application, built on the exact 13-table schema submitted in Deliverable 2 (byte-identical DDL, 13 primary keys, 14 NO ACTION foreign keys, all original columns).')
+    para('Deliverables: SQL population scripts ('+str(v['total_sample_tuples'])+' tuples across 13 tables, every table non-empty); a three-level Chinese terminal menu and a localhost-only web front end that share the same service layer; all ten required status and aggregate queries with documented semantics; deferred-trigger integrity enforcement (total and disjoint specialization, mandatory relationships, at most three simultaneous users per device, usage-time and retirement rules, TRUNCATE guard); four additive read-only views; and '+str(v['unittest_count'])+' automated tests whose real logs ship in evidence/.')
+    para('Revisions relative to Deliverable 2 are deliberately narrow: the budget currency convention follows the D3 statement (USD), new integrity triggers and indexes were added, read-only views were added, and the presentation layer (terminal table layout, web UI) was improved. No table, key, or column of the original schema was altered.')
+    para('Key challenges and resolutions: conflicting draft schemas were reconciled against the actual D2 archive and pinned by a byte hash; multi-row mandatory relationships use composite transactions plus deferred checks; concurrent device allocation is serialized with advisory locks and verified with two real sessions; aggregate pitfalls (SUM versus SUM(DISTINCT), co-author deduplication, full tie handling) are pinned by an independently authored reference fixture, and the standalone SQL file is now compared to that fixture row by row, not only by exit code.')
+    para('Reproduction: sh scripts/bootstrap.sh --check, then python app.py (terminal) or python app.py --web (projector-friendly UI, 127.0.0.1 only; a docker/podman fallback covers machines without Homebrew). The end-of-semester live demo is scheduled by the group through the course reservation form.')
     add('pagebreak','')
     h('附录 A 全部十项报表 SQL')
     para('以下 SQL 与实际程序同源，参数以 %s 表示，执行时由 psycopg 单独绑定。需要在 psql 运行的安全变量版本见 SQL/04_report_queries.sql。建表、约束和各表填充脚本见 SQL/01–03，不在正文重复展开。')

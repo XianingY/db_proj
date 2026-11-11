@@ -37,6 +37,30 @@ class ReportTests(unittest.TestCase):
     def tearDown(self):
         self.conn.execute('ROLLBACK')
 
+    def test_doi_optional_field_is_exercised(self):
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS total, COUNT(doi) AS with_doi FROM publication").fetchone()
+        self.assertGreater(row['with_doi'], 0)
+        self.assertLess(row['with_doi'], row['total'])
+
+    def test_non_faculty_mentor_is_stored_and_counted(self):
+        row = self.conn.execute(
+            "SELECT mentor_type, publication_count FROM v_mentor_publication_totals "
+            "WHERE mentor_id = 'S007'").fetchone()
+        self.assertEqual(row['mentor_type'], 'student')
+        self.assertEqual(row['publication_count'], 2)
+
+    def test_additive_views_exist_and_match_reference(self):
+        views = [r['viewname'] for r in self.conn.execute(
+            "SELECT viewname FROM pg_views WHERE schemaname = current_schema() "
+            "ORDER BY viewname").fetchall()]
+        self.assertEqual(views, ['v_device_current_usage', 'v_mentor_publication_totals',
+                                 'v_project_total_funding', 'v_student_publication_years'])
+        row = self.conn.execute(
+            "SELECT total_funding_usd FROM v_project_total_funding "
+            "WHERE project_id = 'P005'").fetchone()
+        self.assertEqual(normalize(row['total_funding_usd']), '1000000.75')
+
     def test_sample_counts_match_independent_fixture(self):
         for table,count in REFERENCE['table_counts'].items():
             actual=self.conn.execute(sql.SQL('SELECT COUNT(*) AS n FROM {}').format(sql.Identifier(table))).fetchone()['n']
@@ -56,7 +80,7 @@ class ReportTests(unittest.TestCase):
         for publication in self.conn.execute('SELECT publication_id FROM publication').fetchall():
             LabService(self.conn).delete_record('publication',(publication['publication_id'],))
         self.assertEqual([(r['mentor_id'],r['publication_count']) for r in run_report(self.conn,'mentor_publications')],
-                         [('F001',0),('F002',0),('F003',0),('F004',0),('F005',0),('F006',0)])
+                         [('F001',0),('F002',0),('F003',0),('F004',0),('F005',0),('F006',0),('S007',0)])
 
     def test_equal_grant_amounts_are_not_deduplicated(self):
         service=LabService(self.conn)

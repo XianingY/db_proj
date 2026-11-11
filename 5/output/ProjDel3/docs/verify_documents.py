@@ -30,7 +30,7 @@ def main():
     required=['本阶段目标','结构修订','数据库实例',str(v['unittest_count']),
               str(v['total_sample_tuples']),'1000000.75',
               'mentor_publications','equipment_current_users','TRUNCATE','附录A',
-              '原题要求逐条对照','bootstrap.sh','top_student_years','课堂演示网页']
+              '原题要求逐条对照','bootstrap.sh','top_student_years','课堂演示网页','ExecutiveSummary']
     for item in required:
         for label,content in [('PDF',compact),('DOCX',re.sub(r'\s+','',doc_text)),('MD',re.sub(r'\s+','',markdown))]:
             assert item in content,(label,item)

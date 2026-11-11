@@ -25,6 +25,19 @@ REPORTS: dict[str, dict] = {
             JOIN lab_member AS leader ON leader.member_id = p.leader_id
             WHERE p.project_id = %s
         """,
+        "all_sql": """
+            SELECT p.project_id,
+                   p.title,
+                   p.status,
+                   p.start_date,
+                   p.end_date,
+                   p.planned_duration_days,
+                   p.leader_id,
+                   leader.full_name AS leader_name
+            FROM research_project AS p
+            JOIN lab_member AS leader ON leader.member_id = p.leader_id
+            ORDER BY p.project_id
+        """,
     },
     "grant_members": {
         "title": "指定资助项目的参与成员",
@@ -100,6 +113,34 @@ REPORTS: dict[str, dict] = {
             WHERE e.equipment_id = %s
             GROUP BY e.equipment_id, e.equipment_name,
                      e.equipment_type, e.manual_location
+        """,
+        "all_sql": """
+            SELECT e.equipment_id,
+                   e.equipment_name,
+                   e.equipment_type,
+                   e.manual_location,
+                   COUNT(d.device_number) AS device_count,
+                   COUNT(d.device_number) FILTER (WHERE d.status = 'available')
+                       AS available_device_count,
+                   COUNT(d.device_number) FILTER (WHERE d.status = 'in_use')
+                       AS in_use_device_count,
+                   COUNT(d.device_number) FILTER (WHERE d.status = 'retired')
+                       AS retired_device_count,
+                   COALESCE(
+                       jsonb_agg(
+                           jsonb_build_object(
+                               'device_number', d.device_number,
+                               'purchase_date', d.purchase_date,
+                               'status', d.status
+                           ) ORDER BY d.device_number
+                       ) FILTER (WHERE d.device_number IS NOT NULL),
+                       '[]'::jsonb
+                   ) AS devices
+            FROM equipment AS e
+            LEFT JOIN device AS d ON d.equipment_id = e.equipment_id
+            GROUP BY e.equipment_id, e.equipment_name,
+                     e.equipment_type, e.manual_location
+            ORDER BY e.equipment_id
         """,
     },
     "equipment_current_users": {
@@ -212,6 +253,18 @@ REPORTS: dict[str, dict] = {
         """,
     },
 }
+
+
+def run_report_all(conn: Any, name: str) -> list[dict[str, Any]]:
+    """List-all variant used when the terminal leaves the parameter empty."""
+    report = REPORTS[name]
+    if 'all_sql' not in report:
+        raise ValueError(f'报表 {name} 没有列出全部的变体')
+    from psycopg.rows import dict_row
+
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(report['all_sql'])
+        return list(cursor.fetchall())
 
 
 def run_report(

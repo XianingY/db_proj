@@ -96,21 +96,38 @@ const pretty = (value) => {
 };
 
 /* ---------------------------------------------------------------- tables */
+const PAGE_SIZE = 25;
+
 function dataTable(rows, withActions) {
-  if (!rows.length) return el('p', { class: 'empty', text: '无匹配记录。' });
+  if (!rows.length) return [el('p', { class: 'empty', text: '无匹配记录。' })];
   const columns = Object.keys(rows[0]).filter((c) => c !== '__table');
-  const head = el('tr', null,
-    ...columns.map((c) => el('th', { text: labelOf(c) })),
-    withActions ? el('th', { text: '' }) : null);
-  const body = rows.map((row) => el('tr', null,
-    ...columns.map((c) => el('td', {
-      class: /^[-\d.]+$/.test(pretty(row[c])) ? 'num' : '',
-      text: pretty(row[c]),
-    })),
-    withActions ? el('td', { class: 'rowact' },
-      el('button', { text: '修改', onclick: () => openUpdate(row.__table, row) }),
-      el('button', { text: '删除', onclick: () => openDelete(row.__table, row) })) : null));
-  return el('table', { class: 'data' }, el('thead', null, head), el('tbody', null, ...body));
+  const state = { shown: PAGE_SIZE };
+  const wrapper = el('div', { class: 'table-wrap' });
+  const draw = () => {
+    const slice = rows.slice(0, state.shown);
+    const head = el('tr', null,
+      ...columns.map((c) => el('th', { text: labelOf(c) })),
+      withActions ? el('th', { text: '' }) : null);
+    const body = slice.map((row) => el('tr', null,
+      ...columns.map((c) => el('td', {
+        class: /^[-\d.]+$/.test(pretty(row[c])) ? 'num' : '',
+        text: pretty(row[c]),
+      })),
+      withActions ? el('td', { class: 'rowact' },
+        el('button', { text: '修改', onclick: () => openUpdate(row.__table, row) }),
+        el('button', { text: '删除', onclick: () => openDelete(row.__table, row) })) : null));
+    wrapper.replaceChildren(el('table', { class: 'data' },
+      el('thead', null, head), el('tbody', null, ...body)));
+    if (rows.length > state.shown) {
+      wrapper.append(el('button', {
+        class: 'btn btn--ghost', style: 'margin-top:10px',
+        text: '加载更多（还有 ' + (rows.length - state.shown) + ' 行，共 ' + rows.length + ' 行）',
+        onclick: () => { state.shown += PAGE_SIZE; draw(); },
+      }));
+    }
+  };
+  draw();
+  return [wrapper];
 }
 
 async function idOptions(table) {
@@ -163,7 +180,7 @@ async function openEntity(table) {
     try {
       const data = await api('/api/rows?table=' + table + '&q=' + encodeURIComponent(search.value || ''));
       const rows = data.rows.map((row) => Object.assign({ __table: table }, row));
-      holder.replaceChildren(dataTable(rows, true),
+      holder.replaceChildren(...dataTable(rows, true),
         el('p', { class: 'countline', text: '共 ' + rows.length + ' 条记录' }));
     } catch (error) {
       holder.replaceChildren(el('p', { class: 'empty', text: '载入失败：' + error.message }));
@@ -209,16 +226,37 @@ const readValue = (row) => {
   return input.value;
 };
 
+let lastFocus = null;
+
 function modalShell(title, sub, bodyNodes, actions) {
   const modal = $('#modal');
+  lastFocus = document.activeElement;
   modal.replaceChildren(
     el('h3', { text: title }),
     el('div', { class: 'msub', text: sub }),
     ...bodyNodes,
     el('div', { class: 'mactions' }, ...actions));
   $('#overlay').classList.add('open');
+  const focusables = () => [...modal.querySelectorAll('button,input,select')]
+    .filter((node) => !node.disabled);
+  setTimeout(() => (focusables()[0] || modal).focus(), 0);
+  modal.onkeydown = (event) => {
+    if (event.key !== 'Tab') return;
+    const items = focusables();
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  };
 }
-const closeModal = () => $('#overlay').classList.remove('open');
+const closeModal = () => {
+  $('#overlay').classList.remove('open');
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+};
 $('#overlay').addEventListener('click', (event) => {
   if (event.target.id === 'overlay') closeModal();
 });
@@ -470,7 +508,7 @@ async function openReport(name) {
         parts.push(input.dataset.key + '=' + encodeURIComponent(input.value));
       }
       const data = await api('/api/report?name=' + name + (parts.length ? '&' + parts.join('&') : ''));
-      holder.replaceChildren(dataTable(data.rows, false),
+      holder.replaceChildren(...dataTable(data.rows, false),
         el('p', { class: 'countline', text: '共 ' + data.rows.length + ' 条记录' }));
     } catch (error) {
       holder.replaceChildren(el('p', { class: 'empty', text: '查询失败：' + error.message }));
