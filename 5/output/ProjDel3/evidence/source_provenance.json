@@ -1,0 +1,102 @@
+{
+  "authoritative_del2": "3/ProjDel2/SQL/create_tables.sql",
+  "original_ddl_byte_identical": true,
+  "sources": [
+    {
+      "path": "1/ProjDel1-ResearchLabManager.doc",
+      "sha256": "4c8b8f91832a6dea378470252e83d75edc62a215df0a25a37ae57d2a22fbc778"
+    },
+    {
+      "path": "1/ProjDescription-ResearchLabManager.docx",
+      "sha256": "41727b56e9919de332155b79212f3624614b688d3f9cbef9ec7460d02ea98cc5"
+    },
+    {
+      "path": "1/proj_del1_17/科研实验室管理系统概念结构设计报告.md",
+      "sha256": "4b5d3e16e4455d1a843b52cf73e8291603e5845b853ba0fda71c293f68d6acb8"
+    },
+    {
+      "path": "1/proj_del1_17/科研实验室管理系统概念结构设计报告.docx",
+      "sha256": "d07a3a6e41dea72af939c62ee162971ded2e5718a2b0fcce59f01d0d741e6907"
+    },
+    {
+      "path": "3/ProjDel2/SQL/create_tables.sql",
+      "sha256": "f1c168d32325d206cf912c11581fd338ae71a7dd8c37953fc205a7e55ae32ac8"
+    },
+    {
+      "path": "3/ProjDel2/科研实验室管理系统逻辑结构设计报告.docx",
+      "sha256": "8cdc0db585de4fafc866846add17729b8f9c3e87bf529d70e3d82081af57127a"
+    },
+    {
+      "path": "3/ProjDel2.zip",
+      "sha256": "cd09d890ac440c044a86cc36369ead967ddcc1345c8418b1f21a67473c788296"
+    },
+    {
+      "path": "5/ProjDel3-ResearchLabManager.pdf",
+      "sha256": "6dbcae2dc1613203e14a2905d5c23ca7834f45afcd7861dcd43dc881cdbe74e9"
+    },
+    {
+      "path": "pdf/01-BasicConcepts.pdf",
+      "sha256": "155aad276b894013f983f15ae0a5daa054f862f518cea097e586b163e4d5cc91"
+    },
+    {
+      "path": "pdf/02-DBMSAchitecture.pdf",
+      "sha256": "e281a303f9467b19b04d8297e620588297ced850b20f3c23a2eacdfe940087b7"
+    },
+    {
+      "path": "pdf/03-04-ER.pdf",
+      "sha256": "357068323b4b774332caccdc55ccccdf8384cd8e937f3f602891b4e82d10d3b0"
+    },
+    {
+      "path": "pdf/05-RelModel(Fundamentals).pdf",
+      "sha256": "6c56752ec04b0a971454afeb44373f8d24509b05a69670773a7f3a24787bc6aa"
+    },
+    {
+      "path": "pdf/06(1)-RelationalAlgebra.pdf",
+      "sha256": "410ceb5beb08a49a29a3a68161a9b94f156d2c737477ef07618d21ff003cd7ab"
+    },
+    {
+      "path": "pdf/06(2)-RelAlgebraExamples.pdf",
+      "sha256": "f9865df8dadbe3beab6a42c354a9627cf71fd2183529478661c02a073d52fd11"
+    },
+    {
+      "path": "pdf/07-ERtoRelational.pdf",
+      "sha256": "0e00195995484d667fdf4847c5fb0fe48565559daa6166255569db9419ccc2f9"
+    },
+    {
+      "path": "pdf/08-09(1)-SQL-DDL-new.pdf",
+      "sha256": "69a1f0a6986ddd559741bbbcf9e2c1c76d722c300d97859dd4e9224be6304629"
+    },
+    {
+      "path": "pdf/08-09(2)-SQL-SimpleQueries-landscape.pdf",
+      "sha256": "21edf24b9867254f3b515fc5952747b404133c700f25d3e4198a2cd14f958bf2"
+    },
+    {
+      "path": "pdf/08-09(3)-SQLComplexQueries-AdvancedIssues-full.pdf",
+      "sha256": "9544cf7feaf378c644c48d0f49d1eaf758a67860d828dd6ebc91a958da956bba"
+    },
+    {
+      "path": "pdf/08-09(4)-SQL-Constraints-Plus-Landscape.pdf",
+      "sha256": "3d2c8abc968d5ca894aa63fd3a333ac9be1ed199a54beda639f258c8ac486738"
+    },
+    {
+      "path": "pdf/08-09(4)-SQL-DataChanges-Landscape.pdf",
+      "sha256": "8d7a0a658dfca21a8b7d50b1693a42ef8fd6f4bc0f83644090d996e006d4f54b"
+    },
+    {
+      "path": "pdf/08-09(4)-SQL-Views-Extended.pdf",
+      "sha256": "4430c062ad71a662c37c98e743cda8bd4c2764ee88b586af81995aa17ca3dc11"
+    },
+    {
+      "path": "pdf/100(1)-FDs-Landscape.pdf",
+      "sha256": "3acc1ac9598beb63abecc0fbc38501daf7057f720326628590db4bbf7e2fd112"
+    },
+    {
+      "path": "pdf/100(2)-NFs.pdf",
+      "sha256": "25a893305386b47e0cbc8507d925ddd43fce35d3da4e4a4282b80434858e9191"
+    },
+    {
+      "path": "pdf/110-SchemaDecomposition - landscape.pdf",
+      "sha256": "20798478906baf8b3f5a72ef18b3b19362b5e2a0a78dde21073666d2273a6028"
+    }
+  ]
+}

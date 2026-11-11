@@ -1,0 +1,1419 @@
+{
+  "schema_version": "research-lab-sample-reference/v1",
+  "source_schema": "3/ProjDel2/SQL/create_tables.sql",
+  "source_sample_sql": "SQL/03_sample_data.sql",
+  "authored_for_date": "2026-11-11",
+  "timezone": "Asia/Shanghai",
+  "currency": "USD",
+  "calculation": {
+    "method": "Python 标准库独立解析 INSERT；集合 union/distinct、Decimal 精确加法和端点事件扫描。不以 SQL 报表输出生成预期。",
+    "money_encoding": "所有金额及 weekly_hours 用两位小数字符串，避免 JSON 浮点精度损失。",
+    "mentor_scope": "所有保存的 mentee 的全时段 distinct publication；本样例的 14 位 mentee 均为学生。",
+    "major_year_scope": "每个 (major, publication_year) 内按 publication_id 去重；跨专业合著分别计入各专业。",
+    "student_year_scope": "每年所有学生作者的 publication_id 集合并集，不累加各专业计数；降序按数量、年份取三年。",
+    "ended_scope": "end_date 严格小于 2025-01-01；等于的 P004 排除，零资助 P009 保留。",
+    "current_usage_scope": "以执行时上海现在为锚点；九条 ended_at NULL 的使用持续开放。E001 按装置/成员去重后展开全部参与项目，不过滤项目状态。",
+    "report_format": "reports.<模块键>.params 对应 research_lab/reports.py 参数顺序；rows 是独立计算的完整预期行。",
+    "ordering": "中文专业按 Python Unicode 顺序保存；若数据库 collation 不同，专业/年份统计可按 (major, publication_year) 对照集合，其余按报表排序。"
+  },
+  "table_counts": {
+    "lab_member": 24,
+    "faculty": 6,
+    "student": 14,
+    "external_collaborator": 4,
+    "research_project": 10,
+    "project_participation": 69,
+    "research_grant": 15,
+    "equipment": 6,
+    "device": 12,
+    "equipment_usage": 36,
+    "publication": 30,
+    "authorship": 144,
+    "mentorship": 14
+  },
+  "reports": {
+    "project_status": {
+      "params": [
+        "P005"
+      ],
+      "rows": [
+        {
+          "project_id": "P005",
+          "title": "高通量功能材料研究",
+          "start_date": "2024-01-01",
+          "end_date": null,
+          "planned_duration_days": 1096,
+          "status": "active",
+          "leader_id": "F005",
+          "leader_name": "周景文"
+        }
+      ]
+    },
+    "top_funded_projects": {
+      "params": [],
+      "rows": [
+        {
+          "project_id": "P005",
+          "title": "高通量功能材料研究",
+          "total_funding_usd": "1000000.75"
+        },
+        {
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "total_funding_usd": "750000.30"
+        },
+        {
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "total_funding_usd": "550001.50"
+        },
+        {
+          "project_id": "P006",
+          "title": "可解释材料质量预测",
+          "total_funding_usd": "500001.00"
+        },
+        {
+          "project_id": "P003",
+          "title": "边缘计算实验平台",
+          "total_funding_usd": "325000.55"
+        }
+      ]
+    },
+    "mentor_publications": {
+      "params": [],
+      "rows": [
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "publication_count": 16
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "publication_count": 16
+        }
+      ]
+    },
+    "student_publications_by_major_year": {
+      "params": [],
+      "rows": [
+        {
+          "major": "材料科学",
+          "publication_year": 2022,
+          "publication_count": 2
+        },
+        {
+          "major": "材料科学",
+          "publication_year": 2023,
+          "publication_count": 3
+        },
+        {
+          "major": "材料科学",
+          "publication_year": 2024,
+          "publication_count": 4
+        },
+        {
+          "major": "材料科学",
+          "publication_year": 2025,
+          "publication_count": 3
+        },
+        {
+          "major": "材料科学",
+          "publication_year": 2026,
+          "publication_count": 2
+        },
+        {
+          "major": "生物工程",
+          "publication_year": 2022,
+          "publication_count": 2
+        },
+        {
+          "major": "生物工程",
+          "publication_year": 2023,
+          "publication_count": 2
+        },
+        {
+          "major": "生物工程",
+          "publication_year": 2024,
+          "publication_count": 2
+        },
+        {
+          "major": "生物工程",
+          "publication_year": 2025,
+          "publication_count": 3
+        },
+        {
+          "major": "生物工程",
+          "publication_year": 2026,
+          "publication_count": 1
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2021,
+          "publication_count": 2
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2022,
+          "publication_count": 3
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2023,
+          "publication_count": 3
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2024,
+          "publication_count": 5
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2025,
+          "publication_count": 4
+        },
+        {
+          "major": "电子工程",
+          "publication_year": 2026,
+          "publication_count": 3
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2021,
+          "publication_count": 2
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2022,
+          "publication_count": 2
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2023,
+          "publication_count": 4
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2024,
+          "publication_count": 3
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2025,
+          "publication_count": 4
+        },
+        {
+          "major": "计算机科学",
+          "publication_year": 2026,
+          "publication_count": 3
+        }
+      ]
+    },
+    "top_student_years": {
+      "params": [],
+      "rows": [
+        {
+          "publication_year": 2025,
+          "publication_count": 7
+        },
+        {
+          "publication_year": 2024,
+          "publication_count": 6
+        },
+        {
+          "publication_year": 2023,
+          "publication_count": 5
+        }
+      ]
+    },
+    "ended_projects": {
+      "params": [
+        "2025-01-01"
+      ],
+      "rows": [
+        {
+          "project_id": "P009",
+          "title": "开放硬件自主探索",
+          "end_date": "2022-12-31",
+          "grant_count": 0
+        },
+        {
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "end_date": "2023-12-31",
+          "grant_count": 3
+        },
+        {
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "end_date": "2024-06-30",
+          "grant_count": 2
+        },
+        {
+          "project_id": "P003",
+          "title": "边缘计算实验平台",
+          "end_date": "2024-12-31",
+          "grant_count": 2
+        }
+      ]
+    },
+    "grant_members": {
+      "params": [
+        "G001"
+      ],
+      "rows": [
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "C001",
+          "full_name": "冯海",
+          "member_type": "collaborator",
+          "project_role": "外部系统顾问",
+          "weekly_hours": "6.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "F001",
+          "full_name": "陈明远",
+          "member_type": "faculty",
+          "project_role": "项目负责人",
+          "weekly_hours": "12.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "F002",
+          "full_name": "林知行",
+          "member_type": "faculty",
+          "project_role": "联合研究教师",
+          "weekly_hours": "8.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S001",
+          "full_name": "张晨",
+          "member_type": "student",
+          "project_role": "数据平台开发",
+          "weekly_hours": "20.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S002",
+          "full_name": "李悦",
+          "member_type": "student",
+          "project_role": "数据库实验",
+          "weekly_hours": "16.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S003",
+          "full_name": "吴桐",
+          "member_type": "student",
+          "project_role": "测试与复现",
+          "weekly_hours": "10.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S004",
+          "full_name": "郑宇",
+          "member_type": "student",
+          "project_role": "算法协作",
+          "weekly_hours": "16.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S005",
+          "full_name": "孙宁",
+          "member_type": "student",
+          "project_role": "传感数据采集",
+          "weekly_hours": "12.00"
+        },
+        {
+          "grant_id": "G001",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "member_id": "S006",
+          "full_name": "钱珂",
+          "member_type": "student",
+          "project_role": "信号预处理",
+          "weekly_hours": "12.00"
+        }
+      ]
+    },
+    "equipment_current_users": {
+      "params": [
+        "E001"
+      ],
+      "rows": [
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "device_number": "device01",
+          "member_id": "F001",
+          "full_name": "陈明远",
+          "project_id": "P007",
+          "title": "科研数据跨域协作"
+        },
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "device_number": "device01",
+          "member_id": "S001",
+          "full_name": "张晨",
+          "project_id": "P006",
+          "title": "可解释材料质量预测"
+        },
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "device_number": "device01",
+          "member_id": "S001",
+          "full_name": "张晨",
+          "project_id": "P007",
+          "title": "科研数据跨域协作"
+        },
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "device_number": "device01",
+          "member_id": "S002",
+          "full_name": "李悦",
+          "project_id": "P007",
+          "title": "科研数据跨域协作"
+        },
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "device_number": "device02",
+          "member_id": "S004",
+          "full_name": "郑宇",
+          "project_id": null,
+          "title": null
+        }
+      ]
+    },
+    "equipment_status": {
+      "params": [
+        "E001"
+      ],
+      "rows": [
+        {
+          "equipment_id": "E001",
+          "equipment_name": "科研 GPU 工作站",
+          "equipment_type": "计算设备",
+          "manual_location": "/manuals/E001_gpu_workstation.pdf",
+          "device_count": 2,
+          "available_device_count": 0,
+          "in_use_device_count": 2,
+          "retired_device_count": 0,
+          "devices": [
+            {
+              "device_number": "device01",
+              "purchase_date": "2023-01-10",
+              "status": "in_use"
+            },
+            {
+              "device_number": "device02",
+              "purchase_date": "2023-02-10",
+              "status": "in_use"
+            }
+          ]
+        }
+      ]
+    },
+    "shared_project_mentorship": {
+      "params": [],
+      "rows": [
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S001",
+          "mentee_name": "张晨",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S001",
+          "mentee_name": "张晨",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S001",
+          "mentee_name": "张晨",
+          "project_id": "P007",
+          "title": "科研数据跨域协作",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S002",
+          "mentee_name": "李悦",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S002",
+          "mentee_name": "李悦",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S002",
+          "mentee_name": "李悦",
+          "project_id": "P007",
+          "title": "科研数据跨域协作",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S003",
+          "mentee_name": "吴桐",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S003",
+          "mentee_name": "吴桐",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F001",
+          "mentor_name": "陈明远",
+          "mentee_id": "S003",
+          "mentee_name": "吴桐",
+          "project_id": "P007",
+          "title": "科研数据跨域协作",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S004",
+          "mentee_name": "郑宇",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S004",
+          "mentee_name": "郑宇",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S004",
+          "mentee_name": "郑宇",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S005",
+          "mentee_name": "孙宁",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S005",
+          "mentee_name": "孙宁",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S005",
+          "mentee_name": "孙宁",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S006",
+          "mentee_name": "钱珂",
+          "project_id": "P001",
+          "title": "可信科研数据平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S006",
+          "mentee_name": "钱珂",
+          "project_id": "P002",
+          "title": "低功耗智能传感网络",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F002",
+          "mentor_name": "林知行",
+          "mentee_id": "S006",
+          "mentee_name": "钱珂",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S007",
+          "mentee_name": "何帆",
+          "project_id": "P003",
+          "title": "边缘计算实验平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S007",
+          "mentee_name": "何帆",
+          "project_id": "P007",
+          "title": "科研数据跨域协作",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S007",
+          "mentee_name": "何帆",
+          "project_id": "P009",
+          "title": "开放硬件自主探索",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S008",
+          "mentee_name": "高远",
+          "project_id": "P003",
+          "title": "边缘计算实验平台",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S008",
+          "mentee_name": "高远",
+          "project_id": "P007",
+          "title": "科研数据跨域协作",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F003",
+          "mentor_name": "王启航",
+          "mentee_id": "S008",
+          "mentee_name": "高远",
+          "project_id": "P009",
+          "title": "开放硬件自主探索",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S009",
+          "mentee_name": "罗欣",
+          "project_id": "P004",
+          "title": "多模态生物样本分析",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S009",
+          "mentee_name": "罗欣",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S009",
+          "mentee_name": "罗欣",
+          "project_id": "P009",
+          "title": "开放硬件自主探索",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S010",
+          "mentee_name": "唐雨",
+          "project_id": "P004",
+          "title": "多模态生物样本分析",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S010",
+          "mentee_name": "唐雨",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S010",
+          "mentee_name": "唐雨",
+          "project_id": "P010",
+          "title": "学生跨专业试点",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S011",
+          "mentee_name": "马岚",
+          "project_id": "P004",
+          "title": "多模态生物样本分析",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S011",
+          "mentee_name": "马岚",
+          "project_id": "P008",
+          "title": "生物电子交叉验证",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F004",
+          "mentor_name": "赵若兰",
+          "mentee_id": "S011",
+          "mentee_name": "马岚",
+          "project_id": "P010",
+          "title": "学生跨专业试点",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F005",
+          "mentor_name": "周景文",
+          "mentee_id": "S012",
+          "mentee_name": "梁澈",
+          "project_id": "P005",
+          "title": "高通量功能材料研究",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F005",
+          "mentor_name": "周景文",
+          "mentee_id": "S012",
+          "mentee_name": "梁澈",
+          "project_id": "P006",
+          "title": "可解释材料质量预测",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F005",
+          "mentor_name": "周景文",
+          "mentee_id": "S012",
+          "mentee_name": "梁澈",
+          "project_id": "P010",
+          "title": "学生跨专业试点",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F005",
+          "mentor_name": "周景文",
+          "mentee_id": "S013",
+          "mentee_name": "宋黎",
+          "project_id": "P005",
+          "title": "高通量功能材料研究",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F005",
+          "mentor_name": "周景文",
+          "mentee_id": "S013",
+          "mentee_name": "宋黎",
+          "project_id": "P006",
+          "title": "可解释材料质量预测",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F006",
+          "mentor_name": "许安宁",
+          "mentee_id": "S014",
+          "mentee_name": "蒋青",
+          "project_id": "P005",
+          "title": "高通量功能材料研究",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        },
+        {
+          "mentor_id": "F006",
+          "mentor_name": "许安宁",
+          "mentee_id": "S014",
+          "mentee_name": "蒋青",
+          "project_id": "P006",
+          "title": "可解释材料质量预测",
+          "mentorship_start_date": "2020-09-01",
+          "mentorship_end_date": null
+        }
+      ]
+    }
+  },
+  "all_project_funding": [
+    {
+      "project_id": "P001",
+      "total_funding_usd": "550001.50",
+      "grant_count": 3
+    },
+    {
+      "project_id": "P002",
+      "total_funding_usd": "750000.30",
+      "grant_count": 2
+    },
+    {
+      "project_id": "P003",
+      "total_funding_usd": "325000.55",
+      "grant_count": 2
+    },
+    {
+      "project_id": "P004",
+      "total_funding_usd": "150000.75",
+      "grant_count": 2
+    },
+    {
+      "project_id": "P005",
+      "total_funding_usd": "1000000.75",
+      "grant_count": 2
+    },
+    {
+      "project_id": "P006",
+      "total_funding_usd": "500001.00",
+      "grant_count": 2
+    },
+    {
+      "project_id": "P007",
+      "total_funding_usd": "75000.05",
+      "grant_count": 1
+    },
+    {
+      "project_id": "P008",
+      "total_funding_usd": "25000.00",
+      "grant_count": 1
+    },
+    {
+      "project_id": "P009",
+      "total_funding_usd": "0.00",
+      "grant_count": 0
+    },
+    {
+      "project_id": "P010",
+      "total_funding_usd": "0.00",
+      "grant_count": 0
+    }
+  ],
+  "total_grant_funding_usd": "3375004.90",
+  "unfunded_project_ids": [
+    "P009",
+    "P010"
+  ],
+  "mentor_totals": [
+    {
+      "mentor_id": "F001",
+      "mentee_ids": [
+        "S001",
+        "S002",
+        "S003"
+      ],
+      "publication_count": 16,
+      "publication_ids": [
+        "PUB001",
+        "PUB002",
+        "PUB004",
+        "PUB005",
+        "PUB008",
+        "PUB009",
+        "PUB010",
+        "PUB013",
+        "PUB014",
+        "PUB015",
+        "PUB019",
+        "PUB020",
+        "PUB021",
+        "PUB026",
+        "PUB027",
+        "PUB028"
+      ],
+      "mentee_authorship_row_count": 26
+    },
+    {
+      "mentor_id": "F002",
+      "mentee_ids": [
+        "S004",
+        "S005",
+        "S006"
+      ],
+      "publication_count": 16,
+      "publication_ids": [
+        "PUB001",
+        "PUB004",
+        "PUB006",
+        "PUB007",
+        "PUB008",
+        "PUB011",
+        "PUB012",
+        "PUB013",
+        "PUB016",
+        "PUB017",
+        "PUB019",
+        "PUB022",
+        "PUB023",
+        "PUB024",
+        "PUB026",
+        "PUB029"
+      ],
+      "mentee_authorship_row_count": 26
+    },
+    {
+      "mentor_id": "F003",
+      "mentee_ids": [
+        "S007",
+        "S008"
+      ],
+      "publication_count": 8,
+      "publication_ids": [
+        "PUB002",
+        "PUB006",
+        "PUB009",
+        "PUB014",
+        "PUB018",
+        "PUB022",
+        "PUB027",
+        "PUB029"
+      ],
+      "mentee_authorship_row_count": 14
+    },
+    {
+      "mentor_id": "F004",
+      "mentee_ids": [
+        "S009",
+        "S010",
+        "S011"
+      ],
+      "publication_count": 10,
+      "publication_ids": [
+        "PUB005",
+        "PUB007",
+        "PUB010",
+        "PUB012",
+        "PUB015",
+        "PUB018",
+        "PUB020",
+        "PUB023",
+        "PUB025",
+        "PUB028"
+      ],
+      "mentee_authorship_row_count": 21
+    },
+    {
+      "mentor_id": "F005",
+      "mentee_ids": [
+        "S012",
+        "S013"
+      ],
+      "publication_count": 9,
+      "publication_ids": [
+        "PUB006",
+        "PUB009",
+        "PUB011",
+        "PUB014",
+        "PUB016",
+        "PUB021",
+        "PUB024",
+        "PUB025",
+        "PUB029"
+      ],
+      "mentee_authorship_row_count": 15
+    },
+    {
+      "mentor_id": "F006",
+      "mentee_ids": [
+        "S014"
+      ],
+      "publication_count": 6,
+      "publication_ids": [
+        "PUB007",
+        "PUB012",
+        "PUB017",
+        "PUB018",
+        "PUB025",
+        "PUB027"
+      ],
+      "mentee_authorship_row_count": 6
+    }
+  ],
+  "student_publications_by_year": [
+    {
+      "publication_year": 2021,
+      "publication_count": 2,
+      "publication_ids": [
+        "PUB001",
+        "PUB002"
+      ]
+    },
+    {
+      "publication_year": 2022,
+      "publication_count": 4,
+      "publication_ids": [
+        "PUB004",
+        "PUB005",
+        "PUB006",
+        "PUB007"
+      ]
+    },
+    {
+      "publication_year": 2023,
+      "publication_count": 5,
+      "publication_ids": [
+        "PUB008",
+        "PUB009",
+        "PUB010",
+        "PUB011",
+        "PUB012"
+      ]
+    },
+    {
+      "publication_year": 2024,
+      "publication_count": 6,
+      "publication_ids": [
+        "PUB013",
+        "PUB014",
+        "PUB015",
+        "PUB016",
+        "PUB017",
+        "PUB018"
+      ]
+    },
+    {
+      "publication_year": 2025,
+      "publication_count": 7,
+      "publication_ids": [
+        "PUB019",
+        "PUB020",
+        "PUB021",
+        "PUB022",
+        "PUB023",
+        "PUB024",
+        "PUB025"
+      ]
+    },
+    {
+      "publication_year": 2026,
+      "publication_count": 4,
+      "publication_ids": [
+        "PUB026",
+        "PUB027",
+        "PUB028",
+        "PUB029"
+      ]
+    }
+  ],
+  "student_authored_publication_count": 28,
+  "non_student_publication_ids": [
+    "PUB003",
+    "PUB030"
+  ],
+  "major_year_publication_ids": {
+    "材料科学": {
+      "2022": [
+        "PUB006",
+        "PUB007"
+      ],
+      "2023": [
+        "PUB009",
+        "PUB011",
+        "PUB012"
+      ],
+      "2024": [
+        "PUB014",
+        "PUB016",
+        "PUB017",
+        "PUB018"
+      ],
+      "2025": [
+        "PUB021",
+        "PUB024",
+        "PUB025"
+      ],
+      "2026": [
+        "PUB027",
+        "PUB029"
+      ]
+    },
+    "生物工程": {
+      "2022": [
+        "PUB005",
+        "PUB007"
+      ],
+      "2023": [
+        "PUB010",
+        "PUB012"
+      ],
+      "2024": [
+        "PUB015",
+        "PUB018"
+      ],
+      "2025": [
+        "PUB020",
+        "PUB023",
+        "PUB025"
+      ],
+      "2026": [
+        "PUB028"
+      ]
+    },
+    "电子工程": {
+      "2021": [
+        "PUB001",
+        "PUB002"
+      ],
+      "2022": [
+        "PUB004",
+        "PUB006",
+        "PUB007"
+      ],
+      "2023": [
+        "PUB008",
+        "PUB009",
+        "PUB011"
+      ],
+      "2024": [
+        "PUB013",
+        "PUB014",
+        "PUB016",
+        "PUB017",
+        "PUB018"
+      ],
+      "2025": [
+        "PUB019",
+        "PUB022",
+        "PUB023",
+        "PUB024"
+      ],
+      "2026": [
+        "PUB026",
+        "PUB027",
+        "PUB029"
+      ]
+    },
+    "计算机科学": {
+      "2021": [
+        "PUB001",
+        "PUB002"
+      ],
+      "2022": [
+        "PUB004",
+        "PUB005"
+      ],
+      "2023": [
+        "PUB008",
+        "PUB009",
+        "PUB010",
+        "PUB012"
+      ],
+      "2024": [
+        "PUB013",
+        "PUB014",
+        "PUB015"
+      ],
+      "2025": [
+        "PUB019",
+        "PUB020",
+        "PUB021",
+        "PUB022"
+      ],
+      "2026": [
+        "PUB026",
+        "PUB027",
+        "PUB028"
+      ]
+    }
+  },
+  "grant_members_example": {
+    "grant_id": "G001",
+    "project_id": "P001",
+    "member_ids": [
+      "C001",
+      "F001",
+      "F002",
+      "S001",
+      "S002",
+      "S003",
+      "S004",
+      "S005",
+      "S006"
+    ],
+    "row_count": 9
+  },
+  "current_equipment_example": {
+    "equipment_id": "E001",
+    "member_ids": [
+      "F001",
+      "S001",
+      "S002",
+      "S004"
+    ],
+    "usage_ids": [
+      "U030",
+      "U028",
+      "U029",
+      "U031"
+    ],
+    "expanded_project_row_count": 5,
+    "devices": [
+      {
+        "device_number": "device01",
+        "status": "in_use",
+        "member_ids": [
+          "F001",
+          "S001",
+          "S002"
+        ]
+      },
+      {
+        "device_number": "device02",
+        "status": "in_use",
+        "member_ids": [
+          "S004"
+        ]
+      }
+    ],
+    "project_scope": "仅 status=active 的当前项目参与；没有 active 项目的当前使用者保留一行 NULL 项目"
+  },
+  "device_final_statuses": [
+    {
+      "equipment_id": "E001",
+      "device_number": "device01",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E001",
+      "device_number": "device02",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E002",
+      "device_number": "device01",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E002",
+      "device_number": "device02",
+      "status": "available"
+    },
+    {
+      "equipment_id": "E003",
+      "device_number": "device01",
+      "status": "available"
+    },
+    {
+      "equipment_id": "E003",
+      "device_number": "device02",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E004",
+      "device_number": "device01",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E004",
+      "device_number": "device02",
+      "status": "available"
+    },
+    {
+      "equipment_id": "E005",
+      "device_number": "device01",
+      "status": "available"
+    },
+    {
+      "equipment_id": "E005",
+      "device_number": "device02",
+      "status": "in_use"
+    },
+    {
+      "equipment_id": "E006",
+      "device_number": "device01",
+      "status": "available"
+    },
+    {
+      "equipment_id": "E006",
+      "device_number": "device02",
+      "status": "retired"
+    }
+  ],
+  "usage_expectations": {
+    "usage_count": 36,
+    "closed_usage_count": 27,
+    "open_usage_count": 9,
+    "in_use_device_count": 6,
+    "available_device_count": 5,
+    "retired_device_count": 1,
+    "maximum_concurrent_distinct_members": 3,
+    "peak_by_device": {
+      "E001/device01": 3,
+      "E001/device02": 2,
+      "E002/device01": 2,
+      "E002/device02": 1,
+      "E003/device01": 1,
+      "E003/device02": 2,
+      "E004/device01": 1,
+      "E004/device02": 1,
+      "E005/device01": 1,
+      "E005/device02": 1,
+      "E006/device01": 1,
+      "E006/device02": 1
+    },
+    "half_open_touching_example": [
+      "U001",
+      "U002"
+    ],
+    "retired_device": {
+      "equipment_id": "E006",
+      "device_number": "device02",
+      "closed_usage_ids": [
+        "U020",
+        "U021"
+      ],
+      "open_usage_ids": []
+    },
+    "fixed_history_latest_ended_at": "2026-06-09 11:00:00",
+    "open_usage_hours_before_transaction_now": {
+      "U028": 3,
+      "U029": 2,
+      "U030": 1,
+      "U031": 4,
+      "U032": 5,
+      "U033": 2,
+      "U034": 6,
+      "U035": 3,
+      "U036": 1
+    }
+  },
+  "deduplication_witnesses": {
+    "PUB001": {
+      "student_author_ids": [
+        "S001",
+        "S002",
+        "S004",
+        "S005"
+      ],
+      "same_major_computer_science_author_ids": [
+        "S001",
+        "S002",
+        "S004"
+      ],
+      "major_contributions": {
+        "计算机科学": 1,
+        "电子工程": 1
+      },
+      "student_year_contribution": 1,
+      "F001_mentee_authorship_rows": 2,
+      "F001_distinct_publication_contribution": 1,
+      "F002_mentee_authorship_rows": 2,
+      "F002_distinct_publication_contribution": 1
+    },
+    "PUB013": {
+      "F001_mentee_authorship_rows": 3,
+      "F001_distinct_publication_contribution": 1,
+      "computer_science_student_author_ids": [
+        "S001",
+        "S002",
+        "S003",
+        "S004"
+      ],
+      "computer_science_major_year_contribution": 1
+    }
+  }
+}

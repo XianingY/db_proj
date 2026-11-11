@@ -1,0 +1,200 @@
+{
+  "format": "ProjDel3 manifest v1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 8778,
+      "sha256": "7abe83f8118d4a7292a174be0d198962447cf4953546db1e8e89cd1efbf07bc2"
+    },
+    {
+      "path": "SQL/01_create_tables.sql",
+      "bytes": 9151,
+      "sha256": "f1c168d32325d206cf912c11581fd338ae71a7dd8c37953fc205a7e55ae32ac8"
+    },
+    {
+      "path": "SQL/02_integrity.sql",
+      "bytes": 9464,
+      "sha256": "75e221800cd3b7c42c1754f3b08c39129bdbcbcd705ec4e8135c6ae0204952ad"
+    },
+    {
+      "path": "SQL/03_sample_data.sql",
+      "bytes": 24909,
+      "sha256": "fa55b53989db67beb76ece8cf616d07e6ee57d5ab5afc28a5a598080219f8858"
+    },
+    {
+      "path": "SQL/04_report_queries.sql",
+      "bytes": 8312,
+      "sha256": "c0baacca6a396159f7cdc5831a2c6a90010a5b615b3509eb0ad98605aa815451"
+    },
+    {
+      "path": "app.py",
+      "bytes": 2007,
+      "sha256": "fa83a5f8ad57f51d3b12d8d1ad7b798ee62128edf8a6e065a68ae3125ce92d13"
+    },
+    {
+      "path": "docs/build_report.py",
+      "bytes": 41733,
+      "sha256": "9dbe31b342c1a4d47c607ce775ea5183525228d837e16810e3f35f9087ea9697"
+    },
+    {
+      "path": "docs/demo_guide.md",
+      "bytes": 3317,
+      "sha256": "1bac93fd71130e1e785086abd506d73e7cbbc44b9f5411f8db9b27b6e00bba1e"
+    },
+    {
+      "path": "docs/implementation_plan.md",
+      "bytes": 2689,
+      "sha256": "a1eb28b8a0863b885963e51207523bfb109d83fe91d46af5634e358cd62fd7ae"
+    },
+    {
+      "path": "docs/package_submission.py",
+      "bytes": 2021,
+      "sha256": "c8f477f4d9e99ac1e218113ef07e7579330214e8fd60996b6ebf891dffbfc049"
+    },
+    {
+      "path": "docs/verify_documents.py",
+      "bytes": 3911,
+      "sha256": "2628fe57d095081bdfd640b30c488e35ade3a39f2f43bdb8b7cb6967b5079d36"
+    },
+    {
+      "path": "docs/verify_submission.py",
+      "bytes": 6016,
+      "sha256": "d7224ca2c20b8a1ddeb8c8f2a6218907600737ed5339d348521e7e85be2736b3"
+    },
+    {
+      "path": "evidence/demo_reports.txt",
+      "bytes": 16609,
+      "sha256": "f76dee6f787a6b856ee22fa6a4e759cc9cd9702aa48a5fe5020eadd113d66634"
+    },
+    {
+      "path": "evidence/document_validation.json",
+      "bytes": 743,
+      "sha256": "c0ab9a834ce1397aaa4b5398df5d6fffe98549ee16ccfaf7b152d5a9d6ab5651"
+    },
+    {
+      "path": "evidence/menu_demo.txt",
+      "bytes": 8084,
+      "sha256": "03499483ded3a5c7a5f6892a5aaa2d89e716047cb643afe0c9eb0a5d3417f14f"
+    },
+    {
+      "path": "evidence/menu_inputs.txt",
+      "bytes": 217,
+      "sha256": "6b58fd38f06d0de954f9af0cc41edd95f2d35dd6cdc09bc501929e22f8b30678"
+    },
+    {
+      "path": "evidence/menu_snapshot.png",
+      "bytes": 107342,
+      "sha256": "982408556e1817eeb166b2c0a721b07638c9ced003e86dd1a9456ab5e956570b"
+    },
+    {
+      "path": "evidence/report_snapshot.png",
+      "bytes": 99372,
+      "sha256": "ed011f5896768c8037d972f7922b5248b28eb9a79d2b4760e71451fb9bdac636"
+    },
+    {
+      "path": "evidence/sample_reference.json",
+      "bytes": 36635,
+      "sha256": "f4fc48559ce7817bbafd85e63e82295f0a5dec44143ce3ea3eb13aac7b521d3e"
+    },
+    {
+      "path": "evidence/source_provenance.json",
+      "bytes": 3743,
+      "sha256": "25270711564c47f487ea39eb8268c208007e65c5c60204f7c985fcc164deff8d"
+    },
+    {
+      "path": "evidence/standalone_sql.log",
+      "bytes": 11418,
+      "sha256": "c2823fb674f6da3c9c518ef72d1179e81d1eb36f8caaaf88adb1621ed1cc3b7a"
+    },
+    {
+      "path": "evidence/unittest.log",
+      "bytes": 7725,
+      "sha256": "c466ba934552d52dad5711744b4ef3f40716ff3c9d00d84973a0fdcb950cf300"
+    },
+    {
+      "path": "evidence/verification.json",
+      "bytes": 25453,
+      "sha256": "9e5af44578d91eda7a6bc10082e438460d7c2e14b0b9669bc0abb668dd89bd86"
+    },
+    {
+      "path": "requirements-docs.txt",
+      "bytes": 218,
+      "sha256": "c3be85633d43a3d465f354fe9ec943e55994cff84655464140b5dea6f6aced79"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 24,
+      "sha256": "bfaaa83e718f1e325d7e34ab54f7ff4b4827373de39b3e26f82e1224ff518c05"
+    },
+    {
+      "path": "research_lab/__init__.py",
+      "bytes": 71,
+      "sha256": "466925bc5028129fa393248c3eba35003f834a9f161e9f04c57f81baf2491c34"
+    },
+    {
+      "path": "research_lab/cli.py",
+      "bytes": 18281,
+      "sha256": "736cb62f490d0d1d489c4d48edc1dd07348b1cd04a9833fa08e89170508c681a"
+    },
+    {
+      "path": "research_lab/db.py",
+      "bytes": 2406,
+      "sha256": "55d212d725430e5e253f9fa65dfc8c96f84d628612c5b698a543ee6aa8d1fe48"
+    },
+    {
+      "path": "research_lab/reports.py",
+      "bytes": 9832,
+      "sha256": "59e7b050c01df9d1299e88c397b71739703069f657e7187de79f1a40b259d90f"
+    },
+    {
+      "path": "research_lab/service.py",
+      "bytes": 10288,
+      "sha256": "632b0186237bbc4c98d0c4cac5dbb7adc3383cc629ff14afbdf3d02c970eea38"
+    },
+    {
+      "path": "scripts/bootstrap.sh",
+      "bytes": 6168,
+      "sha256": "a1d27badf47a7a830e0db65e0efd9bceb3d562d302a02f42d86e3f34c09799a1"
+    },
+    {
+      "path": "tests/test_application.py",
+      "bytes": 12700,
+      "sha256": "cdd885840febf1accdedc41616800357377d088795d431dcc55e02b3046dff53"
+    },
+    {
+      "path": "tests/test_cli.py",
+      "bytes": 4455,
+      "sha256": "eb1b9f7838d3c790ee6acd2d8d61a0825175d28784aea9dc84bf05b6a036f397"
+    },
+    {
+      "path": "tests/test_concurrency.py",
+      "bytes": 3577,
+      "sha256": "6f323a5f219c9d5b7d7c64bf4d3f88e9e826e70ab08f40344b22ecc81cd898d1"
+    },
+    {
+      "path": "tests/test_display.py",
+      "bytes": 5323,
+      "sha256": "805d87a1f0d3845cf47eab4e150e6bd15645e9b632678698196d316d824ef59d"
+    },
+    {
+      "path": "tests/test_reports.py",
+      "bytes": 5847,
+      "sha256": "64aeebddb2efea7f1e5d9f1faea839a751a029d12b1ae941f72c60b16488c270"
+    },
+    {
+      "path": "第三次小组作业报告.docx",
+      "bytes": 247868,
+      "sha256": "3d98436a2f184e1d1dea85859726e5ee93aa0504a5dfe758e64a8d15e46e90d6"
+    },
+    {
+      "path": "第三次小组作业报告.md",
+      "bytes": 35983,
+      "sha256": "d48cc2305b0891a3ab1b0542bbf98f41735f485cd1b48e1149413e1ef6086547"
+    },
+    {
+      "path": "第三次小组作业报告.pdf",
+      "bytes": 479213,
+      "sha256": "b2d119175f0b513f96ef8fe9916464954e2ee533be6e5aa38c4e01e66a3d175d"
+    }
+  ]
+}

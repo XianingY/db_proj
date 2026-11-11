@@ -1,0 +1,7 @@
+-r requirements.txt
+python-docx>=1.2,<2
+reportlab>=4.2,<6
+pypdf>=5,<7
+# build_report.py / verify_documents.py import PIL directly; do not rely on it
+# arriving only as a transitive reportlab dependency.
+pillow>=10,<14
