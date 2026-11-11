@@ -11,7 +11,6 @@ Standard library only, so the existing virtualenv is sufficient.
 """
 import json
 import os
-import threading
 from datetime import date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,6 +25,14 @@ from .reports import REPORTS, run_report
 from .service import LabService, TABLES
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / 'web'
+MAX_REQUEST_BYTES = 1_000_000
+
+
+class RequestError(ValueError):
+    """带 HTTP 状态码的可预期客户端请求错误。"""
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
 
 CONTENT_TYPES = {'.html': 'text/html; charset=utf-8',
                  '.css': 'text/css; charset=utf-8',
@@ -59,6 +66,8 @@ def field_specs(table):
 
 def coerce(table, data):
     """Apply the terminal's typed parsing to JSON input from the browser."""
+    if not isinstance(data, dict):
+        raise ValueError(f'{table} 的字段数据必须是 JSON 对象')
     specs = field_specs(table)['fields']
     unknown = set(data) - set(specs)
     if unknown:
@@ -139,20 +148,52 @@ def make_handler(dsn, schema, quiet=False):
             self.wfile.write(body)
 
         def _json_body(self):
-            length = int(self.headers.get('Content-Length') or 0)
+            content_type = self.headers.get('Content-Type', '').split(';')[0].strip().lower()
+            if content_type != 'application/json':
+                raise RequestError(415, '写请求必须使用 application/json')
+            try:
+                length = int(self.headers.get('Content-Length') or 0)
+            except ValueError as error:
+                raise ValueError('Content-Length 必须是整数') from error
+            if length < 0:
+                raise ValueError('Content-Length 不能为负数')
+            if length > MAX_REQUEST_BYTES:
+                raise RequestError(413, f'请求体过大，上限为 {MAX_REQUEST_BYTES} 字节')
             raw = self.rfile.read(length) if length else b'{}'
             try:
-                return json.loads(raw.decode('utf-8') or '{}')
-            except ValueError as error:
-                raise ValueError(f'请求体不是合法 JSON：{error}')
+                body = json.loads(raw.decode('utf-8') or '{}')
+            except (UnicodeDecodeError, ValueError) as error:
+                raise ValueError(f'请求体不是合法 JSON：{error}') from error
+            if not isinstance(body, dict):
+                raise ValueError('请求体必须是 JSON 对象，不能是数组或标量')
+            return body
+
+        def _check_origin(self):
+            origin = self.headers.get('Origin')
+            if not origin:
+                return  # 终端、测试和非浏览器客户端不发送 Origin。
+            port = self.server.server_address[1]
+            allowed = {f'http://127.0.0.1:{port}', f'http://localhost:{port}'}
+            if origin.rstrip('/') not in allowed:
+                raise RequestError(403, 'Origin 不是本机演示页面，拒绝写入')
 
         def _conn(self):
-            conn = getattr(self.server.thread_local, 'conn', None)
+            conn = getattr(self, '_request_conn', None)
             if conn is None or conn.closed:
                 conn = connect(dsn, schema)
-                self.server.thread_local.conn = conn
-                self.server.connections.append(conn)
+                self._request_conn = conn
             return conn
+
+        def handle_one_request(self):
+            # ThreadingHTTPServer 的线程生命周期不等于请求生命周期；连接必须
+            # 随本次 HTTP 请求关闭，不能遗留在 thread_local 或全局列表中。
+            try:
+                super().handle_one_request()
+            finally:
+                conn = getattr(self, '_request_conn', None)
+                self._request_conn = None
+                if conn is not None and not conn.closed:
+                    conn.close()
 
         def _query(self):
             return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
@@ -197,14 +238,17 @@ def make_handler(dsn, schema, quiet=False):
                     rows = run_report(conn, name, tuple(params))
                     return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
                 raise ValueError('未知接口')
+            except RequestError as error:
+                return self._send(error.status, {'ok': False, 'error': str(error)})
             except (ValueError, KeyError, psycopg.Error) as error:
                 detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
                 return self._send(400, {'ok': False, 'error': detail})
 
         def do_POST(self):
             try:
-                conn = self._conn()
+                self._check_origin()
                 body = self._json_body()
+                conn = self._conn()
                 table = body.get('table')
                 if table not in TABLES:
                     raise ValueError('未知的表名')
@@ -229,20 +273,28 @@ def make_handler(dsn, schema, quiet=False):
                 else:
                     service.create_record(table, coerce(table, body['data']))
                 return self._send(200, {'ok': True, 'message': '新增已提交'})
+            except RequestError as error:
+                return self._send(error.status, {'ok': False, 'error': str(error)})
             except (ValueError, KeyError, psycopg.Error) as error:
                 detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
                 return self._send(400, {'ok': False, 'error': detail})
 
         def do_PATCH(self):
             try:
-                conn = self._conn()
+                self._check_origin()
                 body = self._json_body()
+                conn = self._conn()
                 table = body.get('table')
                 if table not in TABLES:
                     raise ValueError('未知的表名')
                 specs = field_specs(table)
+                raw_changes = body.get('changes')
+                if raw_changes is None:
+                    raw_changes = {}
+                if not isinstance(raw_changes, dict):
+                    raise ValueError('changes 必须是 JSON 对象')
                 changes = {}
-                for key, raw in (body.get('changes') or {}).items():
+                for key, raw in raw_changes.items():
                     if key not in specs['fields']:
                         raise ValueError(f'包含未知字段：{key}')
                     kind = specs['fields'][key]['kind']
@@ -257,19 +309,24 @@ def make_handler(dsn, schema, quiet=False):
                     changes[key] = parse_value(text, kind)
                 LabService(conn).update_record(table, list(body.get('key') or []), changes)
                 return self._send(200, {'ok': True, 'message': '修改已提交' if changes else '没有修改字段'})
+            except RequestError as error:
+                return self._send(error.status, {'ok': False, 'error': str(error)})
             except (ValueError, KeyError, psycopg.Error) as error:
                 detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
                 return self._send(400, {'ok': False, 'error': detail})
 
         def do_DELETE(self):
             try:
-                conn = self._conn()
+                self._check_origin()
                 body = self._json_body()
+                conn = self._conn()
                 table = body.get('table')
                 if table not in TABLES:
                     raise ValueError('未知的表名')
                 LabService(conn).delete_record(table, list(body.get('key') or []))
                 return self._send(200, {'ok': True, 'message': '删除已提交'})
+            except RequestError as error:
+                return self._send(error.status, {'ok': False, 'error': str(error)})
             except (ValueError, KeyError, psycopg.Error) as error:
                 detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
                 return self._send(400, {'ok': False, 'error': detail})
@@ -289,6 +346,8 @@ def make_handler(dsn, schema, quiet=False):
 
 def _subclass_of(member):
     from .service import SUBCLASSES
+    if not isinstance(member, dict):
+        raise ValueError('member 必须是 JSON 对象')
     table = SUBCLASSES.get(member.get('member_type'))
     if not table:
         raise ValueError('成员类型只能为 faculty、student、collaborator')
@@ -302,8 +361,6 @@ def create_server(dsn=None, schema=None, port=0, quiet=True):
                            quiet=quiet)
     httpd = ThreadingHTTPServer(('127.0.0.1', port), handler)
     httpd.daemon_threads = True
-    httpd.thread_local = threading.local()
-    httpd.connections = []
     return httpd
 
 
@@ -317,7 +374,4 @@ def serve(dsn=None, schema=None, port=8000, quiet=False):
     except KeyboardInterrupt:
         print('\n网页服务已停止。')
     finally:
-        for conn in list(httpd.connections):
-            if not conn.closed:
-                conn.close()
         httpd.server_close()

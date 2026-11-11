@@ -4,7 +4,7 @@
 
 ## 准备
 
-演示前先跑一次环境与数据自检，它会确认 `.venv`、PostgreSQL、schema 与全部自动化测试（当前 74 项，实际数量以测试发现结果为准）都正常：
+演示前先跑一次环境与数据自检，它会确认 `.venv`、PostgreSQL、schema 与全部自动化测试（当前 80 项，实际数量以测试发现结果为准）都正常：
 
 ```sh
 sh scripts/bootstrap.sh --check

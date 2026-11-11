@@ -38,18 +38,18 @@
     },
     {
       "path": "docs/build_report.py",
-      "bytes": 49777,
-      "sha256": "0022be58a3d3b3f5c841feb535b4b2e091b999172506a4a9f719031470c6297f"
+      "bytes": 50536,
+      "sha256": "7bfcb0588d19bcfe3855bfeec266132c229e40bd35a79326473839b98d76b21b"
     },
     {
       "path": "docs/demo_guide.md",
       "bytes": 4724,
-      "sha256": "b5f42fc69c4ed8c048a1f4cea61bdaf24b38b7bea979f054e55f2e95b435a8cf"
+      "sha256": "e43c784f588a2e3bbcec15f6eac7885cf1d1517edfcee33e18b1841f9314fa9e"
     },
     {
       "path": "docs/demo_script.md",
       "bytes": 7646,
-      "sha256": "1d3059a6c63607f31fe3b496d8ae52dafd9fa6cb57895532587388f0e30332a8"
+      "sha256": "b5403c411eb92ead6743929c26d2528003f985d6f08e8f0ed4599639b21c14a2"
     },
     {
       "path": "docs/implementation_plan.md",
@@ -79,7 +79,7 @@
     {
       "path": "evidence/document_validation.json",
       "bytes": 743,
-      "sha256": "399507338013fac4ec29774b0fe99a98a3828fd606d5c82837995a29f87bbb5a"
+      "sha256": "0fec9a77d5d56545d73674a3787e578f8233b243626f6aed26cba429e43ed607"
     },
     {
       "path": "evidence/menu_demo.txt",
@@ -118,13 +118,13 @@
     },
     {
       "path": "evidence/unittest.log",
-      "bytes": 9017,
-      "sha256": "3bf3e40db2c4967580dcccfdcef2e28ea2896363704a95841d69187257bc387e"
+      "bytes": 9757,
+      "sha256": "377c7d217dc542ff9691d0de9cf226d205c504737b2cfef7691593e550893ffe"
     },
     {
       "path": "evidence/verification.json",
       "bytes": 25500,
-      "sha256": "04eb93429e3b73b69097a70254bb370c9ea7d6757f94bf602e2720fc06c79dfd"
+      "sha256": "7213473e7b317a20333a8ff834ced910b8bc8cbba20fb75440dcc9701c25f43f"
     },
     {
       "path": "requirements-docs.txt",
@@ -168,8 +168,8 @@
     },
     {
       "path": "research_lab/web.py",
-      "bytes": 14365,
-      "sha256": "2122f3007f2493364018d54d7b1910c7a13126abfd31bb8a4e739a387f3f011a"
+      "bytes": 17148,
+      "sha256": "fe0ac9a3d794cd85e4bd420d8b0c0b29dbeb63b99e21cc96d2e021526e812bbc"
     },
     {
       "path": "scripts/bootstrap.sh",
@@ -203,8 +203,8 @@
     },
     {
       "path": "tests/test_web.py",
-      "bytes": 7053,
-      "sha256": "82f3a198a7d0a5ccc4b74db56e5f90de47f95a1c1743fa6d2c24685475c822f8"
+      "bytes": 10528,
+      "sha256": "8feeb9d2605db51071f1b15bc2793fa3a9871ba141d1625bf28f584ef9bf647f"
     },
     {
       "path": "web/app.js",
@@ -223,18 +223,18 @@
     },
     {
       "path": "第三次小组作业报告.docx",
-      "bytes": 251238,
-      "sha256": "111760e86cb2323c4b2ce3b6c366e6b3911213cb2fbbcab0b2b2c267d66ef4f1"
+      "bytes": 251610,
+      "sha256": "8b0cfe614810f36a7f3ec35184c38675d6e73936509f868f565d08ae5e61535f"
     },
     {
       "path": "第三次小组作业报告.md",
-      "bytes": 42581,
-      "sha256": "e8505fe94574f3c3020f0d3c527126294b9e00c28b4fc77d7285e22ec9cc9360"
+      "bytes": 43323,
+      "sha256": "d406b989cc0f47af3806c61700d7efa7593474f42199085ecc44ea894065122b"
     },
     {
       "path": "第三次小组作业报告.pdf",
-      "bytes": 498556,
-      "sha256": "d3fc5ff35bb417b245967ac2df1b8e4d77ec36b802884913a92fb9b403ba6698"
+      "bytes": 501537,
+      "sha256": "cb4cd26c32a8259483d89b7b36e3cfd42abfdcbc169213fb07d236e6710241e9"
     }
   ]
 }
