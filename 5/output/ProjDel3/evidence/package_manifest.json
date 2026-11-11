@@ -33,8 +33,8 @@
     },
     {
       "path": "docs/build_report.py",
-      "bytes": 43858,
-      "sha256": "7bd598fa3c97c0b19802403ce35b48a0c902a89a4aa66fea1c63a0dac811d428"
+      "bytes": 44101,
+      "sha256": "3a8c70733469cda335bc05eba52a3c4a05a2f75d7f1e679ae355aae079a790e0"
     },
     {
       "path": "docs/demo_guide.md",
@@ -69,7 +69,7 @@
     {
       "path": "evidence/document_validation.json",
       "bytes": 743,
-      "sha256": "b99828f88222adbd4795ea79d1a4a6d495fae9c01acacb19988593dcffe643bc"
+      "sha256": "67d9a98334ce58b48065401220221bccb9b3f40d2407faa9318636eebd498be7"
     },
     {
       "path": "evidence/menu_demo.txt",
@@ -193,33 +193,33 @@
     },
     {
       "path": "web/app.js",
-      "bytes": 33153,
-      "sha256": "e15c9e97a12c2f6430f0c2988c756efc5ad9835856d0a2d86928338699d30cf3"
+      "bytes": 33579,
+      "sha256": "953f84d26a2f8b7203b8ea76d1459861c97295d97435b5b0c4ab562750f8e58d"
     },
     {
       "path": "web/index.html",
-      "bytes": 4140,
-      "sha256": "0a662acfdfbc4157567fcfff730e567bf7b5aa655d834b78d1076613d35c451d"
+      "bytes": 5115,
+      "sha256": "985fe3492cbf4ea18dc3478361ee0199e516b531576da6d7ba40283d0c417c01"
     },
     {
       "path": "web/style.css",
-      "bytes": 11075,
-      "sha256": "704211d3985e2cb06a2d6c0f1ecfb03947b1c13da58b6661487b250d6370787b"
+      "bytes": 13042,
+      "sha256": "774a80ac67d624a55e40c2423a9f12361da86d3a7ab16c2f9d79ad8546adf36f"
     },
     {
       "path": "第三次小组作业报告.docx",
-      "bytes": 248918,
-      "sha256": "7700275cd4c1deaccebb408934669b1f011626658a6396897e02ee6c926ebb3d"
+      "bytes": 249060,
+      "sha256": "d3f2fd155730fdaf836ae7531e0d23702a6494a4f1cf0391dc94e9a6692e86e5"
     },
     {
       "path": "第三次小组作业报告.md",
-      "bytes": 38016,
-      "sha256": "b49bb6cdd5ede1c41a0b7eca09a2e18de2f9e082156cb2492d3bb3eb9b8f4961"
+      "bytes": 38259,
+      "sha256": "dae4db33ef9ab52d7b803b824b9a0deaf91d63a4c9adeffb719351aab5784928"
     },
     {
       "path": "第三次小组作业报告.pdf",
-      "bytes": 489723,
-      "sha256": "21a7867f93dff7ab49e7cba1ad4955376099013bf16885c73b2fc7e984fef3ba"
+      "bytes": 492751,
+      "sha256": "ca300c059d7e0f370fff3b1ad875e2fb24c32401c954f0c7f9dd2f2a78e5aa0b"
     }
   ]
 }

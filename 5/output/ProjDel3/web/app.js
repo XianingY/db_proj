@@ -152,7 +152,9 @@ async function openEntity(table) {
   const holder = el('div');
   const toolbar = el('div', { class: 'toolbar' }, search, addButton, refresh);
   panel.replaceChildren(
-    el('h3', { style: 'font:600 18px/1.4 var(--serif);margin:0 0 4px', text: spec.label + ' · ' + table }),
+    el('div', { class: 'panel-head' },
+      el('h3', { style: 'font:600 18px/1.4 var(--serif);margin:0', text: spec.label + ' · ' + table }),
+      el('span', { class: 'hint-chip', text: '可操作：新增 · 行内修改 / 删除' })),
     el('p', { class: 'countline', style: 'margin:0 0 14px', text: '主键：' + spec.keys.join(' + ') }),
     toolbar, holder);
 
@@ -447,7 +449,9 @@ async function openReport(name) {
   const paramsBar = el('div', { class: 'params' });
   const holder = el('div');
   panel.replaceChildren(
-    el('h3', { style: 'font:600 18px/1.4 var(--serif);margin:0 0 4px', text: definition.title }),
+    el('div', { class: 'panel-head' },
+      el('h3', { style: 'font:600 18px/1.4 var(--serif);margin:0', text: definition.title }),
+      el('span', { class: 'hint-chip', text: '可操作：换参数 · 运行 · 展开 SQL' })),
     el('p', { class: 'countline', style: 'margin:0 0 12px', text: name }),
     el('p', { class: 'sec-note', style: 'margin:0 0 16px', text: REPORT_NOTES[name] || '' }),
     paramsBar, holder,
@@ -485,17 +489,18 @@ for (const table of MENUS[3].entities.concat(MENUS[3].reports)) PANEL_OF[table] 
 
 function renderMenu(index) {
   const list = $('#fn' + index);
+  const entityButtons = MENUS[index].entities.map((table) => el('button', {
+    text: META.tables[table].label + ' · ' + table,
+    onclick: (event) => { mark(event); openEntity(table); },
+  }));
+  const reportButtons = MENUS[index].reports.map((name) => el('button', {
+    text: META.reports.find((r) => r.name === name).title,
+    onclick: (event) => { mark(event); openReport(name); },
+  }));
   list.replaceChildren(
-    el('h4', { text: '数据维护' }),
-    ...MENUS[index].entities.map((table) => el('button', {
-      text: META.tables[table].label + ' · ' + table,
-      onclick: (event) => { mark(event); openEntity(table); },
-    })),
-    el('h4', { text: '指定查询 / 报表' }),
-    ...MENUS[index].reports.map((name) => el('button', {
-      text: META.reports.find((r) => r.name === name).title,
-      onclick: (event) => { mark(event); openReport(name); },
-    })));
+    el('h4', { text: '数据维护' }), ...entityButtons,
+    el('h4', { text: '指定查询 / 报表' }), ...reportButtons);
+  entityButtons[0].classList.add('on');  // 首屏即标出当前项，避免"看不出选中了什么"
 }
 function mark(event) {
   const list = event.currentTarget.parentElement;
