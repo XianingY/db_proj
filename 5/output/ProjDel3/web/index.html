@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>科研实验室管理系统 · Deliverable 3 课堂演示</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Data Management Systems Design · Course Project Deliverable 3</p>
+    <h1 class="display">科研实验室管理系统</h1>
+    <p class="lede">Research Lab Manager 的课堂演示前端。与终端程序完全同源：同一套业务事务、
+      回滚规则、完整性触发器与十项报表 SQL；此处只是把它们放到投影上更好读的版式里。</p>
+    <dl class="stats" id="stats"></dl>
+  </div>
+</header>
+
+<nav class="indexnav" aria-label="页面索引">
+  <div class="wrap">
+    <a href="#schema">01 模式</a>
+    <a href="#menu1">02 项目与成员</a>
+    <a href="#menu2">03 设备使用</a>
+    <a href="#menu3">04 资助与成果报表</a>
+    <a href="#integrity">05 完整性与并发</a>
+    <a href="#verify">06 验证</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="schema" class="reveal">
+    <div class="sec-head"><span class="sec-no">01</span><h2>关系模式</h2></div>
+    <p class="sec-note">沿用第二次小组作业实际提交的 13 张表、13 个主键与 14 个外键，逐字节保留建表 SQL。
+      卡片列出字段与键；下图为外键依赖，悬停任一表可高亮其外键。</p>
+    <div class="schema-grid" id="schema-grid"></div>
+    <div class="diagram" id="diagram"></div>
+  </section>
+
+  <section id="menu1" class="reveal">
+    <div class="sec-head"><span class="sec-no">02</span><h2>项目与成员管理</h2></div>
+    <p class="sec-note">原题菜单 1：成员与项目的查询、新增、修改、删除，项目状态，按资助查成员，同项目指导关系。
+      新增成员会同时写入相符子类与至少一条项目参与；删除受依赖保护，违规整体回滚。</p>
+    <div class="workspace">
+      <div class="fnlist" id="fn1"></div>
+      <div class="panel" id="panel1"></div>
+    </div>
+  </section>
+
+  <section id="menu2" class="reveal">
+    <div class="sec-head"><span class="sec-no">03</span><h2>设备使用跟踪</h2></div>
+    <p class="sec-note">原题菜单 2：设备、具体装置与使用记录的增删改查，设备状态，以及当前正在使用某设备的成员
+      与其进行中的项目。同一装置任意时刻最多三名成员，退役装置不接受新使用。</p>
+    <div class="workspace">
+      <div class="fnlist" id="fn2"></div>
+      <div class="panel" id="panel2"></div>
+    </div>
+  </section>
+
+  <section id="menu3" class="reveal">
+    <div class="sec-head"><span class="sec-no">04</span><h2>资助与成果报表</h2></div>
+    <p class="sec-note">原题菜单 3 的五项统计，参数可现场更换；每张报表附统计口径与真实 SQL。
+      下方另含资助、成果与作者的维护入口。</p>
+    <div id="reports3"></div>
+    <div class="workspace" style="margin-top:34px">
+      <div class="fnlist" id="fn3"></div>
+      <div class="panel" id="panel3"></div>
+    </div>
+  </section>
+
+  <section id="integrity" class="reveal">
+    <div class="sec-head"><span class="sec-no">05</span><h2>完整性与并发</h2></div>
+    <p class="sec-note">这些规则由数据库触发器兜底，网页与终端都绕不过；写事务在 READ COMMITTED 下串行化。</p>
+    <div class="cards" id="integrity-cards"></div>
+  </section>
+
+  <section id="verify" class="reveal">
+    <div class="sec-head"><span class="sec-no">06</span><h2>验证与证据</h2></div>
+    <p class="sec-note">数字来自最近一次真实运行生成的 evidence/verification.json，不是手写文案。</p>
+    <dl class="kv" id="verify-kv"></dl>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p id="foot-line"></p>
+  </div>
+</footer>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal" id="modal"></div>
+</div>
+<div id="toast" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

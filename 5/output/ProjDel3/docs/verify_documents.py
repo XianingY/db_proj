@@ -30,7 +30,7 @@ def main():
     required=['本阶段目标','结构修订','数据库实例',str(v['unittest_count']),
               str(v['total_sample_tuples']),'1000000.75',
               'mentor_publications','equipment_current_users','TRUNCATE','附录A',
-              '原题要求逐条对照','bootstrap.sh','top_student_years']
+              '原题要求逐条对照','bootstrap.sh','top_student_years','课堂演示网页']
     for item in required:
         for label,content in [('PDF',compact),('DOCX',re.sub(r'\s+','',doc_text)),('MD',re.sub(r'\s+','',markdown))]:
             assert item in content,(label,item)
@@ -38,7 +38,7 @@ def main():
         assert key in compact,key
     assert '\ufffd' not in text,'PDF text contains replacement character'
     assert len(doc.inline_shapes)==2
-    assert len(doc.tables)==14
+    assert len(doc.tables)==15
     embedded=[]
     for page in reader.pages:
         fonts=page['/Resources'].get('/Font',{})
@@ -67,7 +67,7 @@ def main():
         bounds={'word_count':words,'all_words_inside_page':True}
     validation={'status':'passed','pdf_pages':len(reader.pages),'pdf_bytes':pdf.stat().st_size,
         'docx_tables':len(doc.tables),
-        'docx_tables_expected':14,
+        'docx_tables_expected':15,
         'unittest_count_in_documents':v['unittest_count'],'docx_images':len(doc.inline_shapes),
         'all_ten_report_sql_keys_present':True,'required_content_present_in_all_formats':True,
         'embedded_truetype_fonts':sorted(set(embedded)),'text_bounds':bounds,

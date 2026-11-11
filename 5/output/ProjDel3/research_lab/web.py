@@ -1,0 +1,323 @@
+"""Local-only JSON API plus static frontend for the classroom demonstration.
+
+The browser talks to exactly the same business layer as the terminal:
+LabService for writes (same transactions, rollback rules and Chinese error
+messages) and run_report for the ten read-only reports.  Nothing here adds a
+second copy of the business rules.
+
+This is a demonstration service, not a production one: it binds 127.0.0.1,
+has no authentication and relies on the database triggers for integrity.
+Standard library only, so the existing virtualenv is sufficient.
+"""
+import json
+import os
+import threading
+from datetime import date, datetime
+from decimal import Decimal
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+
+import psycopg
+
+from .cli import parse_value
+from .db import DEFAULT_SCHEMA, connect
+from .reports import REPORTS, run_report
+from .service import LabService, TABLES
+
+WEB_ROOT = Path(__file__).resolve().parents[1] / 'web'
+
+CONTENT_TYPES = {'.html': 'text/html; charset=utf-8',
+                 '.css': 'text/css; charset=utf-8',
+                 '.js': 'text/javascript; charset=utf-8',
+                 '.svg': 'image/svg+xml',
+                 '.json': 'application/json; charset=utf-8'}
+
+
+def encode(value):
+    """JSON-safe form that keeps money and timestamps exact, never float."""
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, (date, datetime)):
+        return str(value)
+    return value
+
+
+def field_specs(table):
+    """Split the 标签|类型|提示 field spec used by the terminal as well."""
+    label, keys, fields = TABLES[table]
+    specs = {}
+    for key, description in fields.items():
+        parts = description.split('|')
+        specs[key] = {
+            'label': parts[0],
+            'kind': parts[1] if len(parts) > 1 and parts[1] else 'str',
+            'hint': parts[2] if len(parts) > 2 else '',
+        }
+    return {'label': label, 'keys': list(keys), 'fields': specs}
+
+
+def coerce(table, data):
+    """Apply the terminal's typed parsing to JSON input from the browser."""
+    specs = field_specs(table)['fields']
+    unknown = set(data) - set(specs)
+    if unknown:
+        raise ValueError(f'包含未知字段：{", ".join(sorted(unknown))}')
+    result = {}
+    for key, raw in data.items():
+        kind = specs[key]['kind']
+        if raw is None:
+            if kind.endswith('?'):
+                result[key] = None
+            else:
+                raise ValueError(f'{specs[key]["label"]} 不能为空')
+            continue
+        result[key] = parse_value(str(raw).strip(), kind)
+    return result
+
+
+def foreign_keys(conn):
+    rows = conn.execute("""
+        SELECT c.conname AS conname, cls.relname AS src, ref.relname AS dst,
+               array_agg(a.attname ORDER BY x.n) AS cols
+        FROM pg_constraint c
+        JOIN pg_class cls ON cls.oid = c.conrelid
+        JOIN pg_class ref ON ref.oid = c.confrelid
+        JOIN pg_namespace n ON n.oid = cls.relnamespace
+        CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS x(attnum, n)
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = x.attnum
+        WHERE n.nspname = current_schema() AND c.contype = 'f'
+        GROUP BY c.conname, cls.relname, ref.relname
+        ORDER BY c.conname
+    """).fetchall()
+    return [dict(row) for row in rows]
+
+
+def meta_payload(conn):
+    verification = {}
+    path = Path(__file__).resolve().parents[1] / 'evidence' / 'verification.json'
+    if path.exists():
+        verification = json.loads(path.read_text(encoding='utf-8'))
+    tables = {}
+    counts = {}
+    for name in TABLES:
+        tables[name] = field_specs(name)
+        counts[name] = conn.execute(
+            'SELECT COUNT(*) AS n FROM ' + name).fetchone()['n']
+    return {
+        'schema': conn.execute('SELECT current_schema() AS s').fetchone()['s'],
+        'server_version': conn.execute('SHOW server_version').fetchone()['server_version'],
+        'tables': tables,
+        'counts': counts,
+        'total_tuples': sum(counts.values()),
+        'foreign_keys': foreign_keys(conn),
+        'reports': [{'name': name, 'title': r['title'], 'params': list(r['params']),
+                     'sql': ' '.join(r['sql'].split())}
+                    for name, r in REPORTS.items()],
+        'verification': verification,
+    }
+
+
+def make_handler(dsn, schema, quiet=False):
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = 'HTTP/1.1'
+        server_version = 'ResearchLabD3'
+
+        def log_message(self, fmt, *args):
+            if not quiet:
+                super().log_message(fmt, *args)
+
+        # -- helpers ---------------------------------------------------------
+        def _send(self, status, payload, content_type='application/json; charset=utf-8'):
+            body = payload if isinstance(payload, bytes) else json.dumps(
+                payload, ensure_ascii=False, default=encode).encode('utf-8')
+            self.send_response(status)
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _json_body(self):
+            length = int(self.headers.get('Content-Length') or 0)
+            raw = self.rfile.read(length) if length else b'{}'
+            try:
+                return json.loads(raw.decode('utf-8') or '{}')
+            except ValueError as error:
+                raise ValueError(f'请求体不是合法 JSON：{error}')
+
+        def _conn(self):
+            conn = getattr(self.server.thread_local, 'conn', None)
+            if conn is None or conn.closed:
+                conn = connect(dsn, schema)
+                self.server.thread_local.conn = conn
+                self.server.connections.append(conn)
+            return conn
+
+        def _query(self):
+            return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+
+        # -- verbs -----------------------------------------------------------
+        def do_GET(self):
+            parsed = urlparse(self.path)
+            path = parsed.path
+            if not path.startswith('/api/'):
+                return self._static(path)
+            try:
+                conn = self._conn()
+                query = self._query()
+                if path == '/api/meta':
+                    return self._send(200, {'ok': True, 'meta': meta_payload(conn)})
+                if path == '/api/rows':
+                    table = query.get('table')
+                    if table not in TABLES:
+                        raise ValueError('未知的表名')
+                    rows = LabService(conn).list_rows(table, query.get('q') or None)
+                    return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
+                if path == '/api/record':
+                    table = query.get('table')
+                    if table not in TABLES:
+                        raise ValueError('未知的表名')
+                    keys = field_specs(table)['keys']
+                    key = [query.get(k, '') for k in keys]
+                    record = LabService(conn).get_record(table, key)
+                    if record is None:
+                        raise ValueError('未找到记录')
+                    return self._send(200, {'ok': True, 'record': dict(record)})
+                if path == '/api/report':
+                    name = query.get('name')
+                    if name not in REPORTS:
+                        raise ValueError('未知的报表')
+                    params = []
+                    for key in REPORTS[name]['params']:
+                        raw = query.get(key)
+                        if raw is None:
+                            raise ValueError(f'报表缺少参数 {key}')
+                        params.append(parse_value(raw, 'date') if key == 'end_before' else raw)
+                    rows = run_report(conn, name, tuple(params))
+                    return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
+                raise ValueError('未知接口')
+            except (ValueError, KeyError, psycopg.Error) as error:
+                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
+                return self._send(400, {'ok': False, 'error': detail})
+
+        def do_POST(self):
+            try:
+                conn = self._conn()
+                body = self._json_body()
+                table = body.get('table')
+                if table not in TABLES:
+                    raise ValueError('未知的表名')
+                service = LabService(conn)
+                if table == 'lab_member':
+                    service.create_member(
+                        coerce(table, body['member']),
+                        coerce(_subclass_of(body['member']), body['subtype']),
+                        [coerce('project_participation', p) for p in body.get('participations', [])])
+                elif table == 'research_project':
+                    service.create_project(
+                        coerce(table, body['project']),
+                        [coerce('project_participation', p) for p in body.get('participants', [])])
+                elif table == 'equipment':
+                    service.create_equipment(
+                        coerce(table, body['equipment']),
+                        [coerce('device', d) for d in body.get('devices', [])])
+                elif table == 'publication':
+                    service.create_publication(
+                        coerce(table, body['publication']),
+                        [str(a).strip() for a in body.get('author_ids', []) if str(a).strip()])
+                else:
+                    service.create_record(table, coerce(table, body['data']))
+                return self._send(200, {'ok': True, 'message': '新增已提交'})
+            except (ValueError, KeyError, psycopg.Error) as error:
+                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
+                return self._send(400, {'ok': False, 'error': detail})
+
+        def do_PATCH(self):
+            try:
+                conn = self._conn()
+                body = self._json_body()
+                table = body.get('table')
+                if table not in TABLES:
+                    raise ValueError('未知的表名')
+                specs = field_specs(table)
+                changes = {}
+                for key, raw in (body.get('changes') or {}).items():
+                    if key not in specs['fields']:
+                        raise ValueError(f'包含未知字段：{key}')
+                    kind = specs['fields'][key]['kind']
+                    text = '' if raw is None else str(raw).strip()
+                    if text == '':
+                        continue  # 与终端一致：留空保留原值
+                    if text.upper() == 'NULL':
+                        if not kind.endswith('?'):
+                            raise ValueError(f'{specs["fields"][key]["label"]} 不能为空')
+                        changes[key] = None
+                        continue
+                    changes[key] = parse_value(text, kind)
+                LabService(conn).update_record(table, list(body.get('key') or []), changes)
+                return self._send(200, {'ok': True, 'message': '修改已提交' if changes else '没有修改字段'})
+            except (ValueError, KeyError, psycopg.Error) as error:
+                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
+                return self._send(400, {'ok': False, 'error': detail})
+
+        def do_DELETE(self):
+            try:
+                conn = self._conn()
+                body = self._json_body()
+                table = body.get('table')
+                if table not in TABLES:
+                    raise ValueError('未知的表名')
+                LabService(conn).delete_record(table, list(body.get('key') or []))
+                return self._send(200, {'ok': True, 'message': '删除已提交'})
+            except (ValueError, KeyError, psycopg.Error) as error:
+                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
+                return self._send(400, {'ok': False, 'error': detail})
+
+        # -- static ----------------------------------------------------------
+        def _static(self, path):
+            if path in ('/', ''):
+                path = '/index.html'
+            target = (WEB_ROOT / path.lstrip('/')).resolve()
+            if WEB_ROOT not in target.parents or not target.is_file():
+                return self._send(404, {'ok': False, 'error': '未找到页面'})
+            self._send(200, target.read_bytes(),
+                       CONTENT_TYPES.get(target.suffix, 'application/octet-stream'))
+
+    return Handler
+
+
+def _subclass_of(member):
+    from .service import SUBCLASSES
+    table = SUBCLASSES.get(member.get('member_type'))
+    if not table:
+        raise ValueError('成员类型只能为 faculty、student、collaborator')
+    return table
+
+
+def create_server(dsn=None, schema=None, port=0, quiet=True):
+    """Build a server bound to 127.0.0.1; port 0 lets the OS pick a free one."""
+    handler = make_handler(dsn or os.environ.get('LAB_DSN', 'dbname=postgres'),
+                           schema or os.environ.get('LAB_SCHEMA', DEFAULT_SCHEMA),
+                           quiet=quiet)
+    httpd = ThreadingHTTPServer(('127.0.0.1', port), handler)
+    httpd.daemon_threads = True
+    httpd.thread_local = threading.local()
+    httpd.connections = []
+    return httpd
+
+
+def serve(dsn=None, schema=None, port=8000, quiet=False):
+    httpd = create_server(dsn, schema, port, quiet=quiet)
+    actual = httpd.server_address[1]
+    print(f'课堂演示网页已启动：http://127.0.0.1:{actual}/  （schema={schema or DEFAULT_SCHEMA}）')
+    print('仅监听本机回环地址；Ctrl+C 停止。业务规则与终端完全同源。')
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print('\n网页服务已停止。')
+    finally:
+        for conn in list(httpd.connections):
+            if not conn.closed:
+                conn.close()
+        httpd.server_close()

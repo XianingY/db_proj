@@ -1,0 +1,144 @@
+"""The classroom web service reuses the terminal's business layer exactly."""
+import json
+import threading
+import unittest
+import urllib.error
+import urllib.request
+import uuid
+from pathlib import Path
+
+from psycopg import sql
+
+from research_lab.db import connect, initialize
+from research_lab.web import create_server
+
+ROOT = Path(__file__).resolve().parents[1]
+REFERENCE = json.loads((ROOT / 'evidence' / 'sample_reference.json').read_text(encoding='utf-8'))
+
+
+def call(port, path, method='GET', body=None):
+    request = urllib.request.Request(
+        f'http://127.0.0.1:{port}{path}',
+        data=json.dumps(body).encode('utf-8') if body is not None else None,
+        method=method,
+        headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return response.status, json.loads(response.read().decode('utf-8'))
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read().decode('utf-8'))
+
+
+class WebServiceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.schema = 'lab_web_' + uuid.uuid4().hex[:12]
+        cls.conn = connect(schema=cls.schema)
+        initialize(cls.conn, cls.schema)
+        cls.server = create_server(schema=cls.schema, port=0, quiet=True)
+        cls.port = cls.server.server_address[1]
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        for conn in list(cls.server.connections):
+            if not conn.closed:
+                conn.close()
+        cls.conn.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(cls.schema)))
+        cls.conn.close()
+
+    def test_meta_matches_reference_counts_and_reports(self):
+        status, payload = call(self.port, '/api/meta')
+        self.assertEqual(status, 200)
+        meta = payload['meta']
+        self.assertEqual(meta['counts'], REFERENCE['table_counts'])
+        self.assertEqual(meta['total_tuples'], sum(REFERENCE['table_counts'].values()))
+        self.assertEqual(len(meta['foreign_keys']), 14)
+        # sample_reference.json groups reports differently from REPORTS order;
+        # what matters is that the same ten reports are exposed.
+        self.assertEqual(sorted(r['name'] for r in meta['reports']),
+                         sorted(REFERENCE['reports']))
+        for report in meta['reports']:
+            self.assertIn('SELECT', report['sql'].upper())
+
+    def test_static_index_is_served_and_traversal_blocked(self):
+        with urllib.request.urlopen(f'http://127.0.0.1:{self.port}/', timeout=20) as response:
+            html = response.read().decode('utf-8')
+        self.assertIn('科研实验室管理系统', html)
+        self.assertIn('/app.js', html)
+        status, _ = call(self.port, '/../research_lab/web.py')
+        self.assertEqual(status, 404)
+
+    def test_rows_listing_search_and_record(self):
+        status, payload = call(self.port, '/api/rows?table=lab_member&q=S001')
+        self.assertEqual(status, 200)
+        self.assertTrue(payload['rows'])
+        self.assertTrue(all('S001' in row['member_id'] for row in payload['rows']))
+        status, payload = call(self.port, '/api/record?table=lab_member&member_id=F001')
+        self.assertEqual(status, 200)
+        self.assertEqual(payload['record']['member_type'], 'faculty')
+        status, _ = call(self.port, '/api/rows?table=nope')
+        self.assertEqual(status, 400)
+
+    def test_reports_match_reference_row_for_row(self):
+        params = {'project_status': 'project_id=P005', 'grant_members': 'grant_id=G001',
+                  'equipment_status': 'equipment_id=E001',
+                  'equipment_current_users': 'equipment_id=E001',
+                  'ended_projects': 'end_before=2025-01-01'}
+        for name, expected in REFERENCE['reports'].items():
+            query = params.get(name, '')
+            status, payload = call(
+                self.port, '/api/report?name=' + name + ('&' + query if query else ''))
+            self.assertEqual(status, 200, name)
+            self.assertEqual(payload['rows'], expected['rows'], name)
+
+    def test_member_create_update_delete_round_trip(self):
+        body = {'table': 'lab_member',
+                'member': {'member_id': 'WEB_STU', 'full_name': '网页演示学生',
+                           'member_type': 'student', 'join_date': '2025-01-01'},
+                'subtype': {'student_number': 'WEB2025', 'academic_level': '硕士',
+                            'major': '计算机科学'},
+                'participations': [{'project_id': 'P007', 'project_role': '研究助理',
+                                    'weekly_hours': '6'}]}
+        status, payload = call(self.port, '/api/rows', 'POST', body)
+        self.assertEqual(status, 200, payload)
+        status, payload = call(self.port, '/api/record?table=student&member_id=WEB_STU')
+        self.assertEqual(status, 200)
+        self.assertEqual(payload['record']['major'], '计算机科学')
+        status, payload = call(self.port, '/api/record', 'PATCH',
+                               {'table': 'lab_member', 'key': ['WEB_STU'],
+                                'changes': {'full_name': '网页改名', 'join_date': ''}})
+        self.assertEqual(status, 200, payload)
+        status, payload = call(self.port, '/api/record?table=lab_member&member_id=WEB_STU')
+        self.assertEqual(payload['record']['full_name'], '网页改名')
+        self.assertEqual(str(payload['record']['join_date']), '2025-01-01')
+        status, payload = call(self.port, '/api/record', 'DELETE',
+                               {'table': 'lab_member', 'key': ['WEB_STU']})
+        self.assertEqual(status, 200, payload)
+        status, _ = call(self.port, '/api/record?table=lab_member&member_id=WEB_STU')
+        self.assertEqual(status, 400)
+
+    def test_invalid_create_rolls_back_entirely(self):
+        body = {'table': 'lab_member',
+                'member': {'member_id': 'WEB_BAD', 'full_name': '缺项目',
+                           'member_type': 'student', 'join_date': '2025-01-01'},
+                'subtype': {'student_number': 'WEBBAD', 'academic_level': '硕士', 'major': '专业'},
+                'participations': [{'project_id': 'DOES_NOT_EXIST', 'project_role': '助理',
+                                    'weekly_hours': '1'}]}
+        status, payload = call(self.port, '/api/rows', 'POST', body)
+        self.assertEqual(status, 400, payload)
+        status, _ = call(self.port, '/api/record?table=lab_member&member_id=WEB_BAD')
+        self.assertEqual(status, 400)
+
+    def test_protected_delete_is_refused(self):
+        status, payload = call(self.port, '/api/record', 'DELETE',
+                               {'table': 'lab_member', 'key': ['F001']})
+        self.assertEqual(status, 400, payload)
+        self.assertIn('负责人', payload['error'])
+
+
+if __name__ == '__main__':
+    unittest.main()

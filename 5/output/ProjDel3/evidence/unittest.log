@@ -61,8 +61,15 @@ test_reference_top_student_years (test_reports.ReportTests.test_reference_top_st
 test_sample_counts_match_independent_fixture (test_reports.ReportTests.test_sample_counts_match_independent_fixture) ... ok
 test_schema_has_original_13_primary_keys_and_14_no_action_foreign_keys (test_reports.ReportTests.test_schema_has_original_13_primary_keys_and_14_no_action_foreign_keys) ... ok
 test_truncate_cannot_bypass_mandatory_authorship (test_reports.ReportTests.test_truncate_cannot_bypass_mandatory_authorship) ... ok
+test_invalid_create_rolls_back_entirely (test_web.WebServiceTests.test_invalid_create_rolls_back_entirely) ... ok
+test_member_create_update_delete_round_trip (test_web.WebServiceTests.test_member_create_update_delete_round_trip) ... ok
+test_meta_matches_reference_counts_and_reports (test_web.WebServiceTests.test_meta_matches_reference_counts_and_reports) ... ok
+test_protected_delete_is_refused (test_web.WebServiceTests.test_protected_delete_is_refused) ... ok
+test_reports_match_reference_row_for_row (test_web.WebServiceTests.test_reports_match_reference_row_for_row) ... ok
+test_rows_listing_search_and_record (test_web.WebServiceTests.test_rows_listing_search_and_record) ... ok
+test_static_index_is_served_and_traversal_blocked (test_web.WebServiceTests.test_static_index_is_served_and_traversal_blocked) ... ok
 
 ----------------------------------------------------------------------
-Ran 63 tests in 1.506s
+Ran 70 tests in 2.211s
 
 OK

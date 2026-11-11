@@ -20,8 +20,19 @@ def main():
                         help='专用 schema，不复用 public；默认 research_lab_del3')
     parser.add_argument('--init',action='store_true',help='只创建不存在的 schema 并导入全部样例，然后退出')
     parser.add_argument('--demo',action='store_true',help='运行全部十项只读报表然后退出')
+    parser.add_argument('--web',action='store_true',help='启动本机课堂演示网页（JSON API + 前端，仅 127.0.0.1）')
+    parser.add_argument('--port',type=int,default=8000,help='--web 的监听端口，默认 8000，0 表示自动选择')
     args = parser.parse_args()
     try:
+        if args.web:
+            with connect(args.dsn,args.schema) as conn:
+                if args.init:
+                    initialize(conn,args.schema)
+                    print(f'初始化成功：schema={args.schema}；原有 schema/业务数据未覆盖。')
+                check_ready(conn)
+            from research_lab.web import serve
+            serve(args.dsn,args.schema,args.port)
+            return 0
         with connect(args.dsn,args.schema) as conn:
             if args.init:
                 initialize(conn,args.schema)
