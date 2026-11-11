@@ -1,8 +1,10 @@
 # 课堂演示流程（约 8–10 分钟）
 
+本文件是操作动线；逐分钟讲稿、预期画面与常见提问应答见同目录 `demo_script.md`。
+
 ## 准备
 
-演示前先跑一次环境与数据自检，它会确认 `.venv`、PostgreSQL、schema 和 51 项测试都正常：
+演示前先跑一次环境与数据自检，它会确认 `.venv`、PostgreSQL、schema 与全部自动化测试（当前 74 项，实际数量以测试发现结果为准）都正常：
 
 ```sh
 sh scripts/bootstrap.sh --check

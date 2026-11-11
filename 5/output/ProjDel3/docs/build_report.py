@@ -7,8 +7,72 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
+import re
+import unittest
+
 from research_lab.reports import REPORTS
 from research_lab.service import TABLES
+
+
+# 测试分类标签，键是 tests/ 下的模块名；数量由 unittest 实际发现得到，
+# 不在文档里手写，避免新增测试后报告数字漂移。
+TEST_CATEGORY_LABELS = [
+    ('test_application', '数据库业务测试',
+     '成员/项目/设备/使用/资助/成果生命周期；缺少关系、负责人、三人上限、重叠、未来、退役、指导、闰日、学号/主键/NaN 等'),
+    ('test_cli', '真实终端测试',
+     '三个菜单与统计，成员/项目/设备/使用 CRUD，失败回滚继续操作，空参列全量、只读演示与 EOF/无效选项'),
+    ('test_concurrency', '双连接并发测试',
+     '两人已占用，第三人持锁，第四人在独立会话等待；第三人提交后第四人以 23514 拒绝'),
+    ('test_display', '终端显示测试',
+     'CJK/ASCII 折行与硬切分、列宽预算、标签与提示分离、窄屏竖排兜底、空结果与管道不分页'),
+    ('test_reports', '报表与结构测试',
+     '十项逐行参考比对（含动态生成用例）、数据计数、13 PK/14 FK、全零导师、相同金额、合著/并列年度、参数绑定、active 过滤、附加视图、TRUNCATE 防护'),
+    ('test_web', '课堂网页测试',
+     '元数据与计数、静态页与路径穿越防护、查询与搜索、十项报表逐行一致、组合新增、违规整体回滚与受保护删除'),
+]
+
+
+def test_category_counts():
+    """用 unittest 发现机制统计每个测试模块的真实用例数（含 setattr 动态用例）。
+
+    只加载模块、不执行用例，setUpClass 中的建库不会在此阶段发生，因此本函数
+    不连接 PostgreSQL，可在生成报告时安全调用。
+    """
+    loader = unittest.TestLoader()
+    suite = loader.discover(str(ROOT / 'tests'))
+    counts = {}
+
+    def walk(node):
+        for item in node:
+            if isinstance(item, unittest.TestSuite):
+                walk(item)
+            else:
+                module = item.__class__.__module__
+                counts[module] = counts.get(module, 0) + 1
+
+    walk(suite)
+    return counts
+
+
+def foreign_key_rows():
+    """直接从随包 DDL 解析 14 个外键，报告内容与 SQL/01_create_tables.sql 同源。
+
+    DDL 中 FOREIGN KEY 与 REFERENCES 分写在两行，因此按整段文本匹配，
+    再用匹配位置向前回溯最近的 CREATE TABLE 确定来源表。
+    """
+    ddl = (ROOT / 'SQL' / '01_create_tables.sql').read_text(encoding='utf-8')
+    rows = []
+    for match in re.finditer(
+            r'CONSTRAINT\s+(\w+)\s+FOREIGN KEY\s*\(([^)]+)\)\s*'
+            r'REFERENCES\s+(\w+)\s*\(([^)]+)\)', ddl):
+        name, columns, ref_table, ref_columns = match.groups()
+        head = ddl.rfind('CREATE TABLE', 0, match.start())
+        table_match = re.search(r'CREATE TABLE\s+(\w+)', ddl[head:head+80])
+        rows.append([table_match.group(1), name, columns.replace(' ', ''),
+                     ref_table, ref_columns.replace(' ', ''), 'NO ACTION'])
+    if len(rows) != 14:
+        raise RuntimeError(f'外键解析数量异常：{len(rows)}，应为 14')
+    return rows
 
 
 def report_blocks():
@@ -54,7 +118,7 @@ def report_blocks():
         ['须说明应用程序的开发','research_lab/（db/cli/service/reports）','§4'],
         ['须记录相对 Deliverable 2 的关系模式修订','SQL/02_integrity.sql；预算单位约定','§2.2'],
         ['须记录遇到的困难及解决方案的理由','报告 §7','§7'],
-        ['程序必须能运行','scripts/bootstrap.sh；51 项测试','§3.1、§6.3'],
+        ['程序必须能运行','scripts/bootstrap.sh；'+str(v['unittest_count'])+' 项测试','§3.1、§6.3'],
         ['样例数据须足以完成并演示全部任务','SQL/03_sample_data.sql，'+str(v['total_sample_tuples'])+' 条元组','§3.2'],
         ['界面须菜单驱动且实用，不必做复杂 GUI','三级中文终端菜单 research_lab/cli.py','§4.1'],
         ['1 成员查询/新增/修改/删除','主菜单 1 → 1（含 7/8/9 子类资料）','§4.2'],
@@ -83,6 +147,8 @@ def report_blocks():
         rows.append([table_name,label,', '.join(keys),str(v['table_counts'][table_name])])
     table(['表名','实体/关系','主键','样例数'],rows)
     para('student.student_number 保留非空且唯一的附加候选键；device、project_participation、authorship 保留复合主键。14 个外键仍采用默认 NO ACTION；应用删除时按依赖顺序显式处理，不把外键改成自动级联。全部字段及行内 CHECK 见随包 SQL/01_create_tables.sql。')
+    table(['来源表','外键约束','来源列','引用表','引用列','删除/更新动作'], foreign_key_rows())
+    para('上表 14 行由 SQL/01_create_tables.sql 解析生成，与网页 01 模式页的外键关系图同源；全部外键保持 NO ACTION，依赖保护在应用事务与延迟触发器中实现。')
     sub('2.2 本阶段修订清单与理由')
     table(['事项','本次处理','理由'],[
         ['预算计量单位','第二阶段人民币约定改为本题要求的 USD；数值列不变','D3 明确 Budget 为美元金额；新样例全部以 USD 输入，未声称对旧金额进行汇率转换。'],
@@ -185,12 +251,16 @@ def report_blocks():
     para('录入触发器用 Shanghai clock_timestamp 拒绝未来实际开始/结束；退役装置不接受新使用或重新开启使用。使用新增、修改、删除后，将非退役装置按未结束使用自动同步成 in_use/available；退役前必须无开放使用，退役历史保留。多条使用共同占用时，结束其中一条不会错误地把仍有人用的装置标成 available。')
     para('所有写事务在 READ COMMITTED 下取得同一 advisory transaction lock，并对装置取得行锁。锁持有到提交/回滚，下一写事务在前一事务完成后检查最新已提交事实。代价是写入串行化；小型课堂应用选择正确性优先，不宣称具备大规模吞吐能力。TRUNCATE 单独禁止；正式部署还应避免让日常用户持有禁用/删除触发器的管理权限。')
     sub('6.3 自动测试与独立验证')
-    table(['验证类别','覆盖点'],[
-        ['25 项数据库业务测试','成员/项目/设备/使用/资助/成果生命周期；缺少关系、负责人、三人上限、重叠、未来、退役、指导、闰日、学号/主键/NaN 等'],
-        ['7 项真实终端测试','三个菜单与统计，成员/项目/设备/使用 CRUD，失败回滚继续操作，只读演示与 EOF/无效选项'],
-        ['1 项双连接并发测试','两人已占用，第三人持锁，第四人在独立会话等待；第三人提交后第四人以 23514 拒绝'],
-        ['18 项报表与结构测试','十项逐行参考比对、数据计数、13 PK/14 FK、全零导师、相同金额、合著/并列年度、参数绑定、active 过滤、TRUNCATE 防护'],
-        ['独立 SQL 与演示','psql 执行 SQL/04_report_queries.sql；真实终端 3 次成功变更 + 1 次预期拒绝；结果与日志保存']])
+    category_counts = test_category_counts()
+    test_rows = []
+    for module, label, coverage in TEST_CATEGORY_LABELS:
+        test_rows.append([str(category_counts[module]) + ' 项' + label, coverage])
+    if sum(category_counts.values()) != v['unittest_count']:
+        raise RuntimeError(
+            '测试分类合计 %d 与 evidence 记录 %d 不一致'
+            % (sum(category_counts.values()), v['unittest_count']))
+    test_rows.append(['独立 SQL 与演示','psql 执行 SQL/04_report_queries.sql；真实终端 3 次成功变更 + 1 次预期拒绝；结果与日志保存'])
+    table(['验证类别','覆盖点'], test_rows)
     para('最新真实结果：'+str(v['unittest_count'])+' 项唯一测试通过，退出码 0；十项报表全部逐行匹配独立参考，SQL 文件执行和终端演示均退出码 0。总样例数 '+str(v['total_sample_tuples'])+'，13 张表计数全部吻合。测试每轮创建随机 schema，只删除本轮自己创建的对象，每个普通测试回滚业务修改；不复用或清空既有业务实例。')
     add('code','sh scripts/bootstrap.sh --check\npython -m unittest discover -s tests -v\npython docs/verify_submission.py\n\nEvidence:\n  evidence/unittest.log\n  evidence/verification.json\n  evidence/standalone_sql.log\n  evidence/demo_reports.txt\n  evidence/menu_demo.txt\n  evidence/sample_reference.json')
 

@@ -13,6 +13,7 @@ from docx import Document
 from pypdf import PdfReader
 from PIL import Image
 from research_lab.reports import REPORTS
+from docs.build_report import TEST_CATEGORY_LABELS, test_category_counts, foreign_key_rows
 
 
 def main():
@@ -30,7 +31,8 @@ def main():
     required=['本阶段目标','结构修订','数据库实例',str(v['unittest_count']),
               str(v['total_sample_tuples']),'1000000.75',
               'mentor_publications','equipment_current_users','TRUNCATE','附录A',
-              '原题要求逐条对照','bootstrap.sh','top_student_years','课堂演示网页','ExecutiveSummary']
+              '原题要求逐条对照','bootstrap.sh','top_student_years','课堂演示网页','ExecutiveSummary',
+              '外键约束','终端显示测试','课堂网页测试']
     for item in required:
         for label,content in [('PDF',compact),('DOCX',re.sub(r'\s+','',doc_text)),('MD',re.sub(r'\s+','',markdown))]:
             assert item in content,(label,item)
@@ -38,7 +40,24 @@ def main():
         assert key in compact,key
     assert '\ufffd' not in text,'PDF text contains replacement character'
     assert len(doc.inline_shapes)==2
-    assert len(doc.tables)==15
+    assert len(doc.tables)==16, '新增外键关系一览表后应为 16 张表'
+    # 防回归：文档里不允许再出现与真实运行不符的旧测试数字或旧分类规模。
+    # 只禁止真正的旧口径：51 项时代的总数，以及已改名/改数的旧分类行。
+    # 注意“25 项数据库业务测试”如今仍是正确分类，不能列入禁用词。
+    stale_markers = ['51 项测试', '；51 项', '7 项真实终端测试',
+                     '18 项报表与结构测试']
+    for marker in stale_markers:
+        assert marker not in markdown and marker not in doc_text, marker
+    category_counts = test_category_counts()
+    assert sum(category_counts.values()) == v['unittest_count']
+    for module, label, _coverage in TEST_CATEGORY_LABELS:
+        phrase = str(category_counts[module]) + ' 项' + label
+        assert phrase.replace(' ', '') in re.sub(r'\s+', '', markdown), phrase
+    fk_names = [row[1] for row in foreign_key_rows()]
+    assert len(fk_names) == 14
+    compact_md = re.sub(r'\s+', '', markdown)
+    for name in fk_names:
+        assert name in compact_md, name
     embedded=[]
     for page in reader.pages:
         fonts=page['/Resources'].get('/Font',{})
@@ -67,7 +86,7 @@ def main():
         bounds={'word_count':words,'all_words_inside_page':True}
     validation={'status':'passed','pdf_pages':len(reader.pages),'pdf_bytes':pdf.stat().st_size,
         'docx_tables':len(doc.tables),
-        'docx_tables_expected':15,
+        'docx_tables_expected':16,
         'unittest_count_in_documents':v['unittest_count'],'docx_images':len(doc.inline_shapes),
         'all_ten_report_sql_keys_present':True,'required_content_present_in_all_formats':True,
         'embedded_truetype_fonts':sorted(set(embedded)),'text_bounds':bounds,

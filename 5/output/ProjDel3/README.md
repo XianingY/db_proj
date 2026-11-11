@@ -17,7 +17,8 @@
 | `tests/` | 业务、真实终端、报表、双连接并发测试 |
 | `scripts/bootstrap.sh` | 一键准备 Python/PostgreSQL 环境、初始化并自检 |
 | `evidence/` | 独立参考答案、真实运行日志、数据库结果和截图 |
-| `docs/` | 演示步骤、生成报告/验证的脚本 |
+| `docs/` | 演示步骤、逐分钟讲稿、生成报告/验证的脚本 |
+| `requirements.lock` | 本机验证通过的精确依赖版本，用于逐位复现 |
 
 ## 1. 环境与安装
 
@@ -41,6 +42,9 @@ uv venv --python 3.13 .venv                       # 或 python3 -m venv .venv（
 .venv/bin/python -m pip install -r requirements.txt
 source .venv/bin/activate
 ```
+
+需要逐位复现已验证环境时，用 `requirements.lock` 替换区间依赖文件
+（`uv pip install --python .venv/bin/python -r requirements.lock`），其中区分直接依赖与传递依赖。
 
 先安装并启动 PostgreSQL，确认 `psql -d postgres` 能连接。已有可用数据库可直接复用；也可以创建自己的数据库：
 
