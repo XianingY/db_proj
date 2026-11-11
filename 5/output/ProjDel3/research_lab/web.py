@@ -5,9 +5,10 @@ LabService for writes (same transactions, rollback rules and Chinese error
 messages) and run_report for the ten read-only reports.  Nothing here adds a
 second copy of the business rules.
 
-This is a demonstration service, not a production one: it binds 127.0.0.1,
-has no authentication and relies on the database triggers for integrity.
-Standard library only, so the existing virtualenv is sufficient.
+This is a demonstration service, not a production one: it binds 127.0.0.1 by
+default (LAB_WEB_HOST=0.0.0.0 only inside the container), has no authentication
+and relies on the database triggers for integrity. Standard library only, so the
+existing virtualenv is sufficient.
 """
 import json
 import os
@@ -18,6 +19,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import psycopg
+from psycopg import sql
 
 from .cli import parse_value
 from .db import DEFAULT_SCHEMA, connect
@@ -102,17 +104,51 @@ def foreign_keys(conn):
     return [dict(row) for row in rows]
 
 
-def meta_payload(conn):
-    verification = {}
+def table_counts(conn):
+    """All 13 table counts in one round-trip; names come from the TABLES whitelist.
+
+    Previously meta_payload issued one COUNT query per table, so every page load
+    paid 13 separate database round-trips. Identifiers are composed with psycopg
+    sql.Identifier, which also removes the old string concatenation.
+    """
+    query = sql.SQL(' UNION ALL ').join(
+        sql.SQL('SELECT {}::text AS table_name, COUNT(*) AS n FROM {}').format(
+            sql.Literal(name), sql.Identifier(name))
+        for name in TABLES)
+    return {row['table_name']: row['n']
+            for row in conn.execute(query).fetchall()}
+
+
+_VERIFICATION_CACHE = {'key': None, 'value': {}}
+
+
+def verification_payload():
+    """Cache the static evidence file by (mtime_ns, size); counts remain live.
+
+    Concurrent requests may parse twice before the cache settles, which is
+    harmless under CPython's GIL. Only this static file is cached: schema,
+    table counts and foreign keys are queried on every request.
+    """
     path = Path(__file__).resolve().parents[1] / 'evidence' / 'verification.json'
-    if path.exists():
-        verification = json.loads(path.read_text(encoding='utf-8'))
-    tables = {}
-    counts = {}
-    for name in TABLES:
-        tables[name] = field_specs(name)
-        counts[name] = conn.execute(
-            'SELECT COUNT(*) AS n FROM ' + name).fetchone()['n']
+    try:
+        stat = path.stat()
+        key = (stat.st_mtime_ns, stat.st_size)
+        if _VERIFICATION_CACHE['key'] == key:
+            return _VERIFICATION_CACHE['value']
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        # Verification numbers are presentation-only. A missing, unreadable or
+        # partially written evidence file must not break the schema/report UI.
+        return {}
+    _VERIFICATION_CACHE['key'] = key
+    _VERIFICATION_CACHE['value'] = value
+    return value
+
+
+def meta_payload(conn):
+    verification = verification_payload()
+    tables = {name: field_specs(name) for name in TABLES}
+    counts = table_counts(conn)
     return {
         'schema': conn.execute('SELECT current_schema() AS s').fetchone()['s'],
         'server_version': conn.execute('SHOW server_version').fetchone()['server_version'],
@@ -145,7 +181,11 @@ def make_handler(dsn, schema, quiet=False):
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                # The browser closed the tab mid-response; nothing to report.
+                pass
 
         def _json_body(self):
             content_type = self.headers.get('Content-Type', '').split(';')[0].strip().lower()
@@ -174,6 +214,10 @@ def make_handler(dsn, schema, quiet=False):
                 return  # 终端、测试和非浏览器客户端不发送 Origin。
             port = self.server.server_address[1]
             allowed = {f'http://127.0.0.1:{port}', f'http://localhost:{port}'}
+            # Docker 端口映射可能让浏览器 Origin 的端口与容器内监听端口不同。
+            # 只接受显式配置的额外来源，默认仍严格限定本机。
+            extra = os.environ.get('LAB_WEB_ALLOWED_ORIGINS', '')
+            allowed.update(item.strip().rstrip('/') for item in extra.split(',') if item.strip())
             if origin.rstrip('/') not in allowed:
                 raise RequestError(403, 'Origin 不是本机演示页面，拒绝写入')
 
@@ -197,6 +241,18 @@ def make_handler(dsn, schema, quiet=False):
 
         def _query(self):
             return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+
+        def _fail(self, error):
+            """Single mapping from expected failures to JSON error responses.
+
+            RequestError keeps its own HTTP status; database errors surface their
+            primary message; other validation errors keep their original text.
+            """
+            if isinstance(error, RequestError):
+                return self._send(error.status, {'ok': False, 'error': str(error)})
+            detail = (error.diag.message_primary
+                      if isinstance(error, psycopg.Error) else str(error))
+            return self._send(400, {'ok': False, 'error': detail})
 
         # -- verbs -----------------------------------------------------------
         def do_GET(self):
@@ -238,11 +294,8 @@ def make_handler(dsn, schema, quiet=False):
                     rows = run_report(conn, name, tuple(params))
                     return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
                 raise ValueError('未知接口')
-            except RequestError as error:
-                return self._send(error.status, {'ok': False, 'error': str(error)})
-            except (ValueError, KeyError, psycopg.Error) as error:
-                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
-                return self._send(400, {'ok': False, 'error': detail})
+            except (RequestError, ValueError, KeyError, psycopg.Error) as error:
+                return self._fail(error)
 
         def do_POST(self):
             try:
@@ -273,11 +326,8 @@ def make_handler(dsn, schema, quiet=False):
                 else:
                     service.create_record(table, coerce(table, body['data']))
                 return self._send(200, {'ok': True, 'message': '新增已提交'})
-            except RequestError as error:
-                return self._send(error.status, {'ok': False, 'error': str(error)})
-            except (ValueError, KeyError, psycopg.Error) as error:
-                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
-                return self._send(400, {'ok': False, 'error': detail})
+            except (RequestError, ValueError, KeyError, psycopg.Error) as error:
+                return self._fail(error)
 
         def do_PATCH(self):
             try:
@@ -309,11 +359,8 @@ def make_handler(dsn, schema, quiet=False):
                     changes[key] = parse_value(text, kind)
                 LabService(conn).update_record(table, list(body.get('key') or []), changes)
                 return self._send(200, {'ok': True, 'message': '修改已提交' if changes else '没有修改字段'})
-            except RequestError as error:
-                return self._send(error.status, {'ok': False, 'error': str(error)})
-            except (ValueError, KeyError, psycopg.Error) as error:
-                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
-                return self._send(400, {'ok': False, 'error': detail})
+            except (RequestError, ValueError, KeyError, psycopg.Error) as error:
+                return self._fail(error)
 
         def do_DELETE(self):
             try:
@@ -325,11 +372,8 @@ def make_handler(dsn, schema, quiet=False):
                     raise ValueError('未知的表名')
                 LabService(conn).delete_record(table, list(body.get('key') or []))
                 return self._send(200, {'ok': True, 'message': '删除已提交'})
-            except RequestError as error:
-                return self._send(error.status, {'ok': False, 'error': str(error)})
-            except (ValueError, KeyError, psycopg.Error) as error:
-                detail = error.diag.message_primary if isinstance(error, psycopg.Error) else str(error)
-                return self._send(400, {'ok': False, 'error': detail})
+            except (RequestError, ValueError, KeyError, psycopg.Error) as error:
+                return self._fail(error)
 
         # -- static ----------------------------------------------------------
         def _static(self, path):
@@ -338,8 +382,13 @@ def make_handler(dsn, schema, quiet=False):
             target = (WEB_ROOT / path.lstrip('/')).resolve()
             if WEB_ROOT not in target.parents or not target.is_file():
                 return self._send(404, {'ok': False, 'error': '未找到页面'})
-            self._send(200, target.read_bytes(),
-                       CONTENT_TYPES.get(target.suffix, 'application/octet-stream'))
+            try:
+                body = target.read_bytes()
+            except OSError:
+                # A file may disappear or become unreadable after the is_file check.
+                return self._send(500, {'ok': False, 'error': '页面文件读取失败'})
+            return self._send(200, body,
+                              CONTENT_TYPES.get(target.suffix, 'application/octet-stream'))
 
     return Handler
 
@@ -355,11 +404,16 @@ def _subclass_of(member):
 
 
 def create_server(dsn=None, schema=None, port=0, quiet=True):
-    """Build a server bound to 127.0.0.1; port 0 lets the OS pick a free one."""
+    """Bind to LAB_WEB_HOST (default 127.0.0.1); port 0 lets the OS pick one.
+
+    Containers set LAB_WEB_HOST=0.0.0.0 so a host-side port mapping is reachable.
+    The default keeps the localhost-only demonstration behaviour unchanged.
+    """
+    host = os.environ.get('LAB_WEB_HOST', '127.0.0.1')
     handler = make_handler(dsn or os.environ.get('LAB_DSN', 'dbname=postgres'),
                            schema or os.environ.get('LAB_SCHEMA', DEFAULT_SCHEMA),
                            quiet=quiet)
-    httpd = ThreadingHTTPServer(('127.0.0.1', port), handler)
+    httpd = ThreadingHTTPServer((host, port), handler)
     httpd.daemon_threads = True
     return httpd
 
@@ -367,8 +421,13 @@ def create_server(dsn=None, schema=None, port=0, quiet=True):
 def serve(dsn=None, schema=None, port=8000, quiet=False):
     httpd = create_server(dsn, schema, port, quiet=quiet)
     actual = httpd.server_address[1]
-    print(f'课堂演示网页已启动：http://127.0.0.1:{actual}/  （schema={schema or DEFAULT_SCHEMA}）')
-    print('仅监听本机回环地址；Ctrl+C 停止。业务规则与终端完全同源。')
+    host = os.environ.get('LAB_WEB_HOST', '127.0.0.1')
+    display_host = 'localhost' if host in ('0.0.0.0', '') else host
+    print(f'课堂演示网页已启动：http://{display_host}:{actual}/  （schema={schema or DEFAULT_SCHEMA}）')
+    if host == '127.0.0.1':
+        print('仅监听本机回环地址；Ctrl+C 停止。业务规则与终端完全同源。')
+    else:
+        print('容器模式：监听地址已由 LAB_WEB_HOST 指定；Ctrl+C 停止。业务规则与终端完全同源。')
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

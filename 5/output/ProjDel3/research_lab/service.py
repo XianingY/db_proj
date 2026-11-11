@@ -60,6 +60,10 @@ class LabService:
         self.metadata(table)
         query = sql.SQL('SELECT * FROM {}').format(sql.Identifier(table))
         params = ()
+        # Wildcards are intentionally passed through: an empty keyword lists
+        # all rows, and a literal '%' is an explicit match-everything query in
+        # the terminal demo. Escaping here would change the documented search
+        # behaviour, so the convention is kept and pinned by a test.
         if search:
             columns = self.metadata(table)[2]
             query += sql.SQL(' WHERE ') + sql.SQL(' OR ').join(
@@ -81,6 +85,12 @@ class LabService:
             yield
             self.conn.execute('SELECT lab_assert_integrity()')
             self.conn.execute('SET CONSTRAINTS ALL IMMEDIATE')
+            # Restore deferred mode so COMMIT re-checks the deferred triggers.
+            # Verified with real transactions: a violating row written after
+            # IMMEDIATE is rejected at COMMIT in deferred mode, but at INSERT in
+            # immediate mode. atomic() has no writes between IMMEDIATE and here,
+            # so the 80 tests cannot observe it (reverse-verified); keep this
+            # defensive second check rather than changing the commit timing.
             self.conn.execute('SET CONSTRAINTS ALL DEFERRED')
 
     def _insert(self, table, data):

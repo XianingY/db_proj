@@ -97,7 +97,7 @@ def report_blocks():
         ['样例数据',str(v['total_sample_tuples'])+' 条元组，13 张表全部非空'],
         ['任务覆盖','成员/项目/设备/使用 CRUD，全部十项指定状态与统计查询'],
         ['验证',str(v['unittest_count'])+' 项自动化测试通过，十项报表逐行吻合参考答案'],
-        ['环境复现','scripts/bootstrap.sh 一键装依赖、确认或启动 PostgreSQL、初始化并自检'],
+        ['环境复现','sh start.sh 一键启动：Docker 固化环境或本机自愈，幂等且不覆盖已有数据'],
         ['提交材料','PDF/DOCX/Markdown 报告、完整源代码、SQL、运行证据和演示指南']])
     add('pagebreak','')
     h('1 本阶段目标与资料依据')
@@ -109,7 +109,7 @@ def report_blocks():
         ['3/ProjDel2/逻辑结构设计报告.docx 与 SQL/create_tables.sql','以实际交付的 13 表和 14 外键为权威，不使用早期草稿中的另一套字段。'],
         ['2/ 与 4/ 个人作业','属于不同小世界的练习；只作为 SQL 思路参考，不把供应商/课程等练习表引入本系统。'],
         ['pdf/ 课程课件','关系映射、聚集/连接/去重、复杂约束、函数依赖与规范化的概念参考；具体实现以本阶段实际运行验证为准。']])
-    para('实现范围涵盖原题三个主菜单全部条目。界面采用命令行而非复杂 GUI，将开发精力用于事务、完整性与统计正确性。附加的资助、成果、作者、装置和参与管理用于保持数据可维护，不改变原需求的小世界。')
+    para('实现范围涵盖原题三个主菜单全部条目。题目明确「不必做复杂 GUI」，因此核心界面是命令行菜单，开发精力用于事务、完整性与统计正确性；§4.4 的本机网页只解决投影可读性，与终端共享同一业务层，不是另一套应用或第二套业务规则。附加的资助、成果、作者、装置和参与管理用于保持数据可维护，不改变原需求的小世界。')
     sub('1.1 原题要求逐条对照')
     para('下表把 ProjDel3 题目 PDF 的每一条要求对应到程序入口、SQL/代码位置和报告章节，便于按条核对；“辅助”指本组自行增加、题目未强制的功能。')
     table(['原题要求（ProjDel3 PDF）','程序位置','报告章节'],[
@@ -118,7 +118,7 @@ def report_blocks():
         ['须说明应用程序的开发','research_lab/（db/cli/service/reports）','§4'],
         ['须记录相对 Deliverable 2 的关系模式修订','SQL/02_integrity.sql；预算单位约定','§2.2'],
         ['须记录遇到的困难及解决方案的理由','报告 §7','§7'],
-        ['程序必须能运行','scripts/bootstrap.sh；'+str(v['unittest_count'])+' 项测试','§3.1、§6.3'],
+        ['程序必须能运行','sh start.sh；'+str(v['unittest_count'])+' 项测试','§3.1、§6.3'],
         ['样例数据须足以完成并演示全部任务','SQL/03_sample_data.sql，'+str(v['total_sample_tuples'])+' 条元组','§3.2'],
         ['界面须菜单驱动且实用，不必做复杂 GUI','三级中文终端菜单 research_lab/cli.py','§4.1'],
         ['1 成员查询/新增/修改/删除','主菜单 1 → 1（含 7/8/9 子类资料）','§4.2'],
@@ -160,13 +160,39 @@ def report_blocks():
         ['附加只读视图','SQL/05_views.sql 创建四个视图：项目资助总额、装置当前使用、学生成果年统计、导师成果合计','落实课件视图章节并给 psql 演示附加入口；十项报表仍直接查基表，口径不变。'],
         ['当前项目口径','当前设备用户只关联 status=active 的参与项目','不把已完成和暂停项目展示成正在工作；没有 active 项目的使用者仍保留。']])
     para('未修订的假设包括：每名成员至少参加一个项目；负责人必须参加其项目；设备至少有一台装置；成果至少有一名实验室作者；每名被指导者最多保留一段指导记录（mentee_id 主键，结束后也不新存下一段）；不自我指导、学生不指导教师；DOI 可空且不强制唯一。成员在一个项目中仅有一条保存的参与记录，未新增完整工作经历流水。')
-    sub('2.3 课程规范化思想的应用边界')
-    para('依照课程关系模型/函数依赖的思路，角色和工时依赖于成员—项目组合，留在 project_participation；装置属性依赖于设备—装置组合；三类成员专有信息分别保存，避免无关空值。金额汇总和使用时长为查询派生值，不重复保存。这里没有未经证明就宣称任意分解均为 BCNF、无损且保持所有依赖；本阶段继承已提交模式，重点实现其完整性。设备状态是需求要求保存的管理状态，因此由使用记录触发同步，以控制冗余不一致。')
+    sub('2.3 函数依赖、范式判断与规范化边界')
+    para('课程函数依赖与范式课件（100(1)-FDs-Landscape.pdf、100(2)-NFs.pdf）要求区分「由键决定的事实」与「可以推导的冗余」。本节按实际 DDL 逐表核对，判断范围限于第二次提交、经 SHA-256 固定的 13 张表，而不是笼统宣称整个模式达到某一范式。')
+    table(['关系','声明键与主要函数依赖','BCNF 判断'],[
+        ['lab_member','member_id → full_name, member_type, join_date；单一候选键','满足：决定因素是候选键'],
+        ['faculty / student / external_collaborator','member_id → 各子类专有属性；student 另有 UNIQUE(student_number) 作为第二候选键','满足：两个候选键都决定整行'],
+        ['research_project','project_id → title, 日期, status, leader_id 等；leader_id 可对应多个项目，不决定其它属性','满足：无非键决定因素'],
+        ['project_participation','(member_id, project_id) → project_role, weekly_hours，完全依赖组合键','满足：无部分依赖'],
+        ['research_grant','grant_id → agency, budget, 日期, project_id；project_id 可重复（一项目多资助）','满足：无非键决定因素'],
+        ['equipment','equipment_id → name, type, manual_location；单一候选键','满足'],
+        ['device','(equipment_id, device_number) → purchase_date, status；device_number 只是设备内局部键','满足：局部键不单独决定整行'],
+        ['equipment_usage','usage_id → member/device/区间/purpose；(成员,装置,开始时刻) 的唯一性由触发器保证，未声明为候选键','满足：声明的键决定全部属性'],
+        ['publication','publication_id → title, 年/月/日, venue, doi；doi 可空且未声明唯一','满足：无非键决定因素'],
+        ['authorship','(member_id, publication_id) 为全键，无非主属性','平凡满足'],
+        ['mentorship','mentee_id → mentor_id, start_date, end_date；依赖「每名被指导者至多保留一段指导记录」假设','满足；该假设改变时需重新评估键与依赖']])
+    para('在各自声明键与上述业务假设成立时，13 张表均满足 BCNF：每个非平凡函数依赖的决定因素都是候选键。本阶段没有对已提交模式做新的分解，因此 110-SchemaDecomposition 课件区分的「无损连接」与「保持依赖」在此对应不分解即无需证明，而不是分解后天然成立。若将来把 mentorship 改为保存多段指导历史，mentee_id 将不再是候选键，必须重新评估键、依赖与可能的分解——这正是第一次报告把该解释列为待确认假设的原因。')
+    para('device.status 是需求明确要求保存的管理状态，也是本模式唯一刻意保留的受控冗余：它由 lab_sync_device_status() 依据未结束使用同步，并由 lab_assert_integrity() 在提交前校验一致性。金额汇总、报表计数与使用时长都是查询时聚集或推导的值，不写入基表，避免产生需要人工维护的派生列。')
+    sub('2.4 概念阶段图外约束的落实位置')
+    para('第一次报告 §6 列出 EER 图无法直接强制的 7 类条件，并注明留待后续阶段实现；第二次报告 §3.2 同样把它们归为跨表与时间约束。下表逐条给出第三阶段的实际强制位置与验证方式，形成「概念识别 → 逻辑声明 → 实现与测试」的闭环。')
+    table(['第一次报告的图外约束','第三阶段强制位置','验证方式'],[
+        ['同一装置任意时刻最多三名成员使用','SQL/02_integrity.sql：lab_assert_integrity() 在各开始时刻 COUNT(DISTINCT member_id)；lab_usage_before() 取装置行锁','双连接并发测试：第四人等待后被 23514 拒绝'],
+        ['学生不得指导教师、不得自我指导','DDL ck_mentorship_self；lab_assert_integrity() 检查导师为学生且被指导者为教师','业务测试：子类互斥、指导约束'],
+        ['负责教师必须出现在该项目的参与关系中','lab_assert_integrity() 按 project_id + leader_id 检查参与记录','业务测试：负责人参与、删除最后参与记录'],
+        ['结束不早于开始；同一成员同一装置的区间不重叠','DDL ck_*_dates CHECK；lab_usage_before() 拒绝未来时刻；lab_assert_integrity() 检查 [start,end) 重叠','业务测试：边界、空区间、未来输入、闰日'],
+        ['删除后各端最少数量仍然成立','LabService.delete_record() 显式依赖顺序 + 事务内 lab_assert_integrity()；13 表 BEFORE TRUNCATE 拒绝触发器','业务测试：最后项目/作者；报表测试：TRUNCATE 防护'],
+        ['状态、数值取值域；成员类型与子类一致','DDL CHECK 约束 + lab_sync_device_status() + lab_assert_integrity() 子类完全且互斥检查','业务测试：状态同步、NaN、学号与主键'],
+        ['附加键与局部键','student.student_number UNIQUE；device / project_participation / authorship 复合主键；DOI 未声明唯一','报表测试：13 PK、14 FK、1 UNIQUE 结构核对']])
+    para('上述位置全部来自随包 SQL 与源码，未把「写在报告里」当作「已经实现」：每项都有对应的自动化用例，运行结果保存在 evidence/。')
 
     h('3 数据库实例创建与样例规划')
     sub('3.1 环境、连接和创建顺序')
     para('实际验证环境为 Python '+v['python']+'、PostgreSQL '+v['postgresql']+'、psycopg 3，操作系统 macOS。连接可通过 LAB_DSN 或标准 PGHOST/PGPORT/PGUSER 等环境变量配置。默认复用本机 postgres 数据库，在 research_lab_del3 专用 schema 内创建业务实例，不使用或覆盖 public 中的业务表。其他机器可以先 createdb research_lab，再指定 LAB_DSN=dbname=research_lab。')
-    add('code','# 推荐：一键准备（幂等；不覆盖已有 schema）\nsh scripts/bootstrap.sh          # 建 .venv + 装依赖 + 起 PostgreSQL + --init + 自检\nsh scripts/bootstrap.sh --check  # 只自检\n\n# 手工方式\nuv venv --python 3.13 .venv      # python3 -m venv .venv 亦可，但见下方说明\n.venv/bin/python -m pip install -r requirements.txt\n# Optional: createdb research_lab\n# export LAB_DSN="dbname=research_lab"\n.venv/bin/python app.py --init\n.venv/bin/python app.py\n.venv/bin/python app.py --demo')
+    add('code','# 推荐：一条命令（自动选 Docker 固化环境或本机环境；幂等、不覆盖已有数据）\nsh start.sh            # 启动演示网页，默认 http://localhost:8000/\nsh start.sh menu       # 中文三级终端菜单\nsh start.sh demo       # 十项只读报表\nsh start.sh test       # 全部自动化测试\nsh start.sh check      # 自检（含演示数据一致性）\n\n# 手工等价方式（排障用）\nsh scripts/bootstrap.sh           # 建 .venv + 装依赖 + 起 PostgreSQL + --init + 自检\nsh scripts/bootstrap.sh --check  # 只自检\nuv venv --python 3.13 .venv\n.venv/bin/python -m pip install -r requirements.txt\n# Optional: createdb research_lab\n# export LAB_DSN="dbname=research_lab"\n.venv/bin/python app.py --init\n.venv/bin/python app.py\n.venv/bin/python app.py --demo')
+    para('统一入口 start.sh 先判断 Docker daemon：可用时以 Dockerfile、docker-compose.yml 固化 Python 3.13 与 PostgreSQL 18，依赖装在镜像层并由数据卷保留实例；不可用时走本机环境，仅在 .venv 损坏时才重建。两条路径都只在 schema 缺失时初始化，已就绪时跳过重复配置，也不覆盖已有数据；Dockerfile 与 requirements.lock 保证换机器后仍是同一套依赖版本。')
     para('不要把“机器上有 python3”当成“能建虚拟环境”。本次复现就遇到 Homebrew Python 存在、但 pip 依赖的 libexpat 缺少符号而无法执行 python3 -m venv 的情况；bootstrap.sh 因此先在临时目录实测每个候选解释器的 venv 能力，全部失败时自动退回 uv venv --python 3.13，再安装 requirements.txt 与 requirements-docs.txt。PostgreSQL 未在监听时脚本会尝试用 Homebrew 启动服务并等待就绪；仍失败则明确报错而不是静默继续。')
     para('初始化在一个事务内依次创建不存在的 schema、执行原建表 SQL、执行新增完整性 SQL、导入样例、调用完整性检查并立即检查延迟约束后提交。任一步失败则整个创建回滚。初始化不支持覆盖；已有同名 schema 会拒绝，想创建新实例只能显式选新 schema 名称。运行实例只需要查询与写权限；初次初始化与测试还需要创建 schema/函数/触发器的权限。')
     sub('3.2 样例分布与功能覆盖')
@@ -262,7 +288,7 @@ def report_blocks():
     test_rows.append(['独立 SQL 与演示','psql 执行 SQL/04_report_queries.sql；真实终端 3 次成功变更 + 1 次预期拒绝；结果与日志保存'])
     table(['验证类别','覆盖点'], test_rows)
     para('最新真实结果：'+str(v['unittest_count'])+' 项唯一测试通过，退出码 0；十项报表全部逐行匹配独立参考，SQL 文件执行和终端演示均退出码 0。总样例数 '+str(v['total_sample_tuples'])+'，13 张表计数全部吻合。测试每轮创建随机 schema，只删除本轮自己创建的对象，每个普通测试回滚业务修改；不复用或清空既有业务实例。')
-    add('code','sh scripts/bootstrap.sh --check\npython -m unittest discover -s tests -v\npython docs/verify_submission.py\n\nEvidence:\n  evidence/unittest.log\n  evidence/verification.json\n  evidence/standalone_sql.log\n  evidence/demo_reports.txt\n  evidence/menu_demo.txt\n  evidence/sample_reference.json')
+    add('code','sh start.sh check\nsh start.sh test\n.venv/bin/python docs/verify_submission.py\n\nEvidence:\n  evidence/unittest.log\n  evidence/verification.json\n  evidence/standalone_sql.log\n  evidence/demo_reports.txt\n  evidence/menu_demo.txt\n  evidence/sample_reference.json')
 
     h('7 开发困难、处理理由与局限')
     table(['问题','解决及理由'],[
@@ -286,7 +312,7 @@ def report_blocks():
     para('本次没有增加完整参与起止历史；按资助查成员及同项目指导只反映保存的参与集合。导师统计按题意取保存的全部被指导者成果，不声称只统计指导期间因果贡献。应用不包含登录、财务换汇、审计恢复和复杂 GUI，正式多实验室环境需重新设计权限与锁粒度。本次提交可支持现场演示，但期末预约和现场展示仍需小组按课程通知完成，程序不会自动代预约。')
 
     h('8 结论与课程参考')
-    para('本阶段将原概念与逻辑模式落为真实 PostgreSQL 实例及可运行菜单应用，提供所有原题 CRUD 和十项查询，通过关系、时间、并发和报表边界验证。结构修订限于预算约定、完整性机制及索引，原表/键/字段保持一致。随包 README 和演示指南给出复现方法，PDF/DOCX 报告、样例 SQL、源程序及真实证据构成第三次小组作业提交。')
+    para('本阶段将原概念与逻辑模式落为真实 PostgreSQL 实例及可运行菜单应用，提供所有原题 CRUD 和十项查询，通过关系、时间、并发和报表边界验证。结构修订限于预算约定、完整性机制及索引，原表/键/字段保持一致；§2.3 给出逐表函数依赖与范式判断，§2.4 把第一次报告识别的图外约束逐条落实到实现与测试。随包 README 与演示指南以 sh start.sh 为统一复现入口（Docker 与本机两条幂等路径），PDF/DOCX 报告、样例 SQL、源程序及真实证据构成第三次小组作业提交。')
     para('课程引用均为用户提供的本地课件，不引用外部答案：07-ERtoRelational.pdf（超类/子类、弱实体、联系映射）；08-09(3)-SQLComplexQueries-AdvancedIssues-full.pdf 第 27 页（COUNT DISTINCT）及聚集分组/外连接章节；08-09(4)-SQL-Constraints-Plus-Landscape.pdf 第 3–5 页（完全参与、复杂约束与 EXISTS/NOT EXISTS 断言思想）；100(1)-FDs-Landscape.pdf 与 100(2)-NFs.pdf 第 7–12 页（依赖及规范化）；110-SchemaDecomposition - landscape.pdf 第 4–6 页（无损连接和保持依赖的区别）。页码为 PDF 实际页序。')
     para('课件的数据库全局断言思想在此实现为 PostgreSQL 延迟触发器与显式检查，而非提交仅能书写、未验证可运行的标准断言。功能与边界的判断以本包实际运行结果为证据。')
     add('pagebreak','')
@@ -295,7 +321,7 @@ def report_blocks():
     para('Deliverables: SQL population scripts ('+str(v['total_sample_tuples'])+' tuples across 13 tables, every table non-empty); a three-level Chinese terminal menu and a localhost-only web front end that share the same service layer; all ten required status and aggregate queries with documented semantics; deferred-trigger integrity enforcement (total and disjoint specialization, mandatory relationships, at most three simultaneous users per device, usage-time and retirement rules, TRUNCATE guard); four additive read-only views; and '+str(v['unittest_count'])+' automated tests whose real logs ship in evidence/.')
     para('Revisions relative to Deliverable 2 are deliberately narrow: the budget currency convention follows the D3 statement (USD), new integrity triggers and indexes were added, read-only views were added, and the presentation layer (terminal table layout, web UI) was improved. No table, key, or column of the original schema was altered.')
     para('Key challenges and resolutions: conflicting draft schemas were reconciled against the actual D2 archive and pinned by a byte hash; multi-row mandatory relationships use composite transactions plus deferred checks; concurrent device allocation is serialized with advisory locks and verified with two real sessions; aggregate pitfalls (SUM versus SUM(DISTINCT), co-author deduplication, full tie handling) are pinned by an independently authored reference fixture, and the standalone SQL file is now compared to that fixture row by row, not only by exit code.')
-    para('Reproduction: sh scripts/bootstrap.sh --check, then python app.py (terminal) or python app.py --web (projector-friendly UI, 127.0.0.1 only; a docker/podman fallback covers machines without Homebrew). The end-of-semester live demo is scheduled by the group through the course reservation form.')
+    para('Reproduction: sh start.sh is the single entry point; it uses a Docker image that pins Python 3.13 and PostgreSQL 18 when a daemon is available, and otherwise prepares a self-healing native environment. sh start.sh check / test run the gates; the terminal menu and the projector-friendly web view share the same service layer. The report also documents per-table functional dependencies, BCNF reasoning, and how every out-of-diagram constraint from Deliverable 1 is enforced and tested. The end-of-semester live demo is scheduled by the group through the course reservation form.')
     add('pagebreak','')
     h('附录 A 全部十项报表 SQL')
     para('以下 SQL 与实际程序同源，参数以 %s 表示，执行时由 psycopg 单独绑定。需要在 psql 运行的安全变量版本见 SQL/04_report_queries.sql。建表、约束和各表填充脚本见 SQL/01–03，不在正文重复展开。')
@@ -446,6 +472,8 @@ def pdf_report(blocks,path):
             # Schema PK text needs enough space; source/function tables use equal flexible widths.
             if headers[0]=='表名': widths=[available*x for x in (.30,.16,.43,.11)]
             elif headers[0]=='原题要求（ProjDel3 PDF）': widths=[available*x for x in (.52,.30,.18)]
+            elif headers[0]=='关系': widths=[available*x for x in (.24,.50,.26)]
+            elif headers[0]=='第一次报告的图外约束': widths=[available*x for x in (.30,.44,.26)]
             elif len(headers)==2:widths=[available*.28,available*.72]
             elif len(headers)==3:widths=[available*.24,available*.38,available*.38]
             elif len(headers)==7:widths=[available*.24]+[available*.76/6]*6

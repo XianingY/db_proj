@@ -1,6 +1,7 @@
 """Connection and one-time, non-destructive initialization."""
 import os
 import re
+from contextlib import suppress
 from pathlib import Path
 
 import psycopg
@@ -17,8 +18,22 @@ def connect(dsn=None, schema=None):
         raise ValueError('schema 必须由小写英文、数字和下划线组成，以字母开头')
     conn = psycopg.connect(dsn or os.environ.get('LAB_DSN', 'dbname=postgres'),
                            autocommit=True, row_factory=dict_row)
-    conn.execute("SET TIME ZONE 'Asia/Shanghai'")
-    conn.execute(sql.SQL('SET search_path TO {}').format(sql.Identifier(schema)))
+    try:
+        # One round-trip instead of two SET statements. set_config(..., false)
+        # is session-scoped and equivalent to SET for this connection; schema
+        # was already restricted to [a-z0-9_] above, so binding it is safe.
+        # A persistent connection pool is deliberately NOT introduced: the web
+        # layer closes its connection per request, and test_web asserts that no
+        # PostgreSQL sessions accumulate after API calls.
+        conn.execute(
+            "SELECT set_config('TimeZone', 'Asia/Shanghai', false), "
+            "set_config('search_path', %s, false)", (schema,))
+    except BaseException:
+        # A failure in session setup must not leave an open connection behind;
+        # web requests create one connection each, so leaks accumulate quickly.
+        with suppress(Exception):
+            conn.close()
+        raise
     return conn
 
 

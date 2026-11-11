@@ -28,7 +28,10 @@ def normalized(value):
 
 def main():
     evidence=ROOT/'evidence'
-    evidence.mkdir(exist_ok=True)
+    # 某些托管运行时会拦截对已存在目录的 mkdir 调用并抛 FileExistsError，
+    # 即便指定了 exist_ok=True；先判断再创建，保证验证脚本在任意环境可运行。
+    if not evidence.is_dir():
+        evidence.mkdir()
     test=subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-v'],
                         cwd=ROOT,text=True,capture_output=True,timeout=120)
     log=test.stdout+test.stderr
@@ -71,11 +74,6 @@ def main():
                 '-v','end_before=2025-01-01','-f','SQL/04_report_queries.sql'],
                 cwd=ROOT,env=env,text=True,capture_output=True,timeout=30)
             assert machine.returncode==0,'机器可读独立 SQL 执行失败'
-            lines=[line for line in machine.stdout.splitlines() if line.strip()]
-            order=['project_status','grant_members','shared_project_mentorship',
-                   'equipment_status','equipment_current_users','top_funded_projects',
-                   'mentor_publications','student_publications_by_major_year',
-                   'ended_projects','top_student_years']
             # The program rows were already asserted equal to the independent
             # reference above; comparing the standalone SQL file against the
             # program rows therefore pins file == program == reference.

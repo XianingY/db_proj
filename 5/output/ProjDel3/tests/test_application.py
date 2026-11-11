@@ -213,6 +213,10 @@ class ApplicationTests(unittest.TestCase):
         # Apostrophes in data are values, not executable SQL.
         self.service.update_record('lab_member',('S001',),dict(full_name="O'Neil; SELECT 1"))
         self.assertEqual(self.service.get_record('lab_member',('S001',))['full_name'],"O'Neil; SELECT 1")
+        # A literal '%' is an intentional match-all wildcard, not an escaped
+        # literal; keep this terminal search convention pinned.
+        self.assertEqual(self.service.list_rows('lab_member', '%'),
+                         self.service.list_rows('lab_member'))
 
     def test_24_no_destructive_reinitialization(self):
         self.assert_invalid(lambda:initialize(self.conn,self.schema),'已存在')

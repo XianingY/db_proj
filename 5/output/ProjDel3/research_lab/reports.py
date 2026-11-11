@@ -255,16 +255,21 @@ REPORTS: dict[str, dict] = {
 }
 
 
+def _fetch_rows(conn: Any, query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    """Execute one read-only statement and return dict rows, closing only our cursor."""
+    from psycopg.rows import dict_row
+
+    with conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(query, params)
+        return list(cursor.fetchall())
+
+
 def run_report_all(conn: Any, name: str) -> list[dict[str, Any]]:
     """List-all variant used when the terminal leaves the parameter empty."""
     report = REPORTS[name]
     if 'all_sql' not in report:
         raise ValueError(f'报表 {name} 没有列出全部的变体')
-    from psycopg.rows import dict_row
-
-    with conn.cursor(row_factory=dict_row) as cursor:
-        cursor.execute(report['all_sql'])
-        return list(cursor.fetchall())
+    return _fetch_rows(conn, report['all_sql'])
 
 
 def run_report(
@@ -284,8 +289,4 @@ def run_report(
             f"（{', '.join(report['params']) or '无'}），收到 {len(params)} 个"
         )
 
-    from psycopg.rows import dict_row
-
-    with conn.cursor(row_factory=dict_row) as cursor:
-        cursor.execute(report["sql"], params)
-        return list(cursor.fetchall())
+    return _fetch_rows(conn, report["sql"], params)

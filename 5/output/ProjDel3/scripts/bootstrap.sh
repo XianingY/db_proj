@@ -34,9 +34,10 @@ add_pg_bin() {
 }
 
 # ---------------------------------------------------------------- Python 环境
-# 本机可能出现「python3 在、但 python3 -m venv 失败」的情况（例如 Homebrew
-# Python 的 pip 因 libexpat 符号缺失而无法运行）。因此逐个候选在临时目录里
-# 实际试跑，失败就退回 uv 托管的 CPython，绝不假设第一个 python3 可用。
+# .venv 可能因跨机器复制而残留失效的解释器绝对路径，也可能依赖不完整。
+# 这种情况必须以 --clear 重建，不能在损坏目录上就地补装，否则每次启动都会
+# 重复失败。uv 优先（本机托管 CPython 3.13 与 requirements.lock 的验证环境
+# 一致），没有 uv 时逐个试 python3 -m venv。
 VENV_PY="$ROOT/.venv/bin/python"
 
 python_works() {
@@ -47,40 +48,41 @@ python_works() {
     return 1
 }
 
-if python_works; then
-    step "复用已存在的 .venv（$("$VENV_PY" -V 2>&1)）"
-elif [ "$CHECK_ONLY" = 1 ]; then
-    die ".venv 不可用；去掉 --check 重新运行以创建环境"
-else
-    step "准备 Python 虚拟环境"
-    BASE_PY=""
-    PROBE=$(mktemp -d)
-    for candidate in python3.13 python3.12 python3.11 python3.10 python3 /usr/bin/python3; do
-        if ! command -v "$candidate" >/dev/null 2>&1; then continue; fi
-        if ! "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' >/dev/null 2>&1; then
-            continue
-        fi
-        if "$candidate" -m venv "$PROBE/v" >/dev/null 2>&1; then
-            BASE_PY=$candidate
-            break
-        fi
-    done
-    if [ -z "$BASE_PY" ]; then
-        if ! command -v uv >/dev/null 2>&1; then
-            die "找不到可用的 Python 3.10+（或 python3 -m venv 均失败），且未安装 uv：https://docs.astral.sh/uv/"
-        fi
-        printf '没有可用的 python3 -m venv，改用 uv 创建 CPython 3.13 环境\n'
-        uv venv --python 3.13 "$ROOT/.venv" >/dev/null
-    else
-        printf '使用 %s 创建 .venv\n' "$BASE_PY"
-        "$BASE_PY" -m venv "$ROOT/.venv"
-    fi
+install_deps() {
     if command -v uv >/dev/null 2>&1; then
         uv pip install --python "$VENV_PY" -r requirements.txt -r requirements-docs.txt
     else
         "$VENV_PY" -m pip install --quiet --upgrade pip
         "$VENV_PY" -m pip install --quiet -r requirements.txt -r requirements-docs.txt
     fi
+}
+
+if python_works; then
+    step "复用已存在的 .venv（$("$VENV_PY" -V 2>&1)）"
+elif [ "$CHECK_ONLY" = 1 ]; then
+    die ".venv 不可用（解释器路径失效或依赖缺失）；运行 sh start.sh 或 sh scripts/bootstrap.sh 重建，再执行 --check"
+else
+    step "重建 Python 虚拟环境（现有 .venv 不可用）"
+    CREATED=0
+    if command -v uv >/dev/null 2>&1 && uv venv --python 3.13 --clear "$ROOT/.venv" >/dev/null; then
+        printf '使用 uv 重建 .venv（CPython 3.13）\n'
+        CREATED=1
+    else
+        BASE_PY=""
+        for candidate in python3.13 python3.12 python3.11 python3.10 python3 /usr/bin/python3; do
+            if ! command -v "$candidate" >/dev/null 2>&1; then continue; fi
+            if ! "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' >/dev/null 2>&1; then continue; fi
+            if "$candidate" -m venv --clear "$ROOT/.venv" >/dev/null 2>&1; then BASE_PY=$candidate; break; fi
+        done
+        if [ -n "$BASE_PY" ]; then
+            printf '使用 %s 重建 .venv\n' "$BASE_PY"
+            CREATED=1
+        fi
+    fi
+    if [ "$CREATED" != 1 ]; then
+        die "找不到可用的 Python 3.10+，也无法用 uv 创建环境；请安装 Python 3.10+ 或 uv：https://docs.astral.sh/uv/"
+    fi
+    install_deps
     if ! python_works; then die "依赖安装后仍无法 import psycopg"; fi
 fi
 
