@@ -33,13 +33,16 @@ def main():
               'mentor_publications','equipment_current_users','TRUNCATE','附录A',
               '原题要求逐条对照','bootstrap.sh','start.sh','top_student_years','课堂演示网页','ExecutiveSummary',
               '外键约束','终端显示测试','课堂网页测试',
-              '函数依赖','BCNF','图外约束']
+              '函数依赖','BCNF','图外约束','关系代数','附录B','γ']
     for item in required:
         for label,content in [('PDF',compact),('DOCX',re.sub(r'\s+','',doc_text)),('MD',re.sub(r'\s+','',markdown))]:
             assert item in content,(label,item)
     for key in REPORTS:
         assert key in compact,key
     assert '\ufffd' not in text,'PDF text contains replacement character'
+    # Songti has no glyph for U+22C8 / U+27D5 / U+2131; reportlab emits NUL for
+    # those codepoints. Fail loudly instead of shipping a PDF with missing symbols.
+    assert '\x00' not in text,'PDF text contains a missing glyph (NUL from the embedded font)'
     assert len(doc.inline_shapes)==2
     assert len(doc.tables)==18, '新增函数依赖与图外约束两张表后应为 18 张表'
     # 防回归：文档里不允许再出现与真实运行不符的旧测试数字或旧分类规模。

@@ -58,8 +58,8 @@
     },
     {
       "path": "docs/build_report.py",
-      "bytes": 56803,
-      "sha256": "d39787493038ab3a872693e715e215db8ffa326897be7ac48295e09ff4760407"
+      "bytes": 59697,
+      "sha256": "3962c5145199b9559d1753e7fcef1935e7349da65ddebf799fa83a9231e2a965"
     },
     {
       "path": "docs/check_demo_data.py",
@@ -68,8 +68,8 @@
     },
     {
       "path": "docs/demo_guide.md",
-      "bytes": 6671,
-      "sha256": "82175257682c0954cfe7bfe9a31f72c8ba6d813bf31a1a59caf78038bf850c58"
+      "bytes": 6810,
+      "sha256": "d5c35162d042951444a093df407de84117de206f7051f33d25450b106c01f394"
     },
     {
       "path": "docs/demo_script.md",
@@ -87,9 +87,14 @@
       "sha256": "c8f477f4d9e99ac1e218113ef07e7579330214e8fd60996b6ebf891dffbfc049"
     },
     {
+      "path": "docs/relational_algebra.md",
+      "bytes": 3862,
+      "sha256": "0d03d182998f50a850cd916687d18b03391a725abacb8e63cfa1a8f63f8b4c54"
+    },
+    {
       "path": "docs/verify_documents.py",
-      "bytes": 5287,
-      "sha256": "cb32265fc1038d46ca36bed9dd3a6997ac8e74cf208fdf9afd16f57cb70f8f8b"
+      "bytes": 5576,
+      "sha256": "f57f779938706024d196d63144906df75eded7819035b7a011f1e056c25889e7"
     },
     {
       "path": "docs/verify_submission.py",
@@ -104,7 +109,7 @@
     {
       "path": "evidence/document_validation.json",
       "bytes": 743,
-      "sha256": "e6ce1cd0a5fb026ece0eafb2909dc207e6f6c254c9902f7a667f3875e97bd826"
+      "sha256": "ebfbe5c5fee4d2733c30a22906ff9bb23cab912409e058e4bb7e49646454d38f"
     },
     {
       "path": "evidence/menu_demo.txt",
@@ -144,12 +149,12 @@
     {
       "path": "evidence/unittest.log",
       "bytes": 9757,
-      "sha256": "b1f2c5528af49e4cfd8fe075355db1b300c9fe040ddff72d77a3e75eb96aeb37"
+      "sha256": "9f1261496145695a16c43d7248026d597635085e10fbdb4ff9f2984a89165f11"
     },
     {
       "path": "evidence/verification.json",
       "bytes": 25500,
-      "sha256": "2f2b9266eed370b7da2982d5aed1b8be56414957d9b5cdddc11f1b7f2b2b1ed9"
+      "sha256": "a335eb2a2e9c024f3b5f6cb61cbfc31c788d0f7af6f80def1b3ba99b6c3754ce"
     },
     {
       "path": "requirements-docs.txt",
@@ -263,18 +268,18 @@
     },
     {
       "path": "第三次小组作业报告.docx",
-      "bytes": 254313,
-      "sha256": "98857c072c3b01ecfbfc1da31da58323be2aec3312a20403e35aa81429471f5a"
+      "bytes": 255461,
+      "sha256": "3371fb10c146176fd73325013b54dfe289b108a402ab804b6af31148b2beceb0"
     },
     {
       "path": "第三次小组作业报告.md",
-      "bytes": 49188,
-      "sha256": "0ee813c00ed130b273aa3f84ddb933c0d46aa6692a3e7ad9e1d9e69a8ba59b3c"
+      "bytes": 51914,
+      "sha256": "ed1ec4ea4d2e1b065e76ae0a9b7b0116a21abaa6cc209296e648a0fdad01f8cc"
     },
     {
       "path": "第三次小组作业报告.pdf",
-      "bytes": 514024,
-      "sha256": "38ba1b57cc2d2fb02cadd33557cbc46cd9e66f1f32c5be55c9c87673d57410dc"
+      "bytes": 520870,
+      "sha256": "6c108bcc6356e033e922787cadb15b8a2b89177a5d07e4f4b680e381f0cfbebe"
     }
   ]
 }
