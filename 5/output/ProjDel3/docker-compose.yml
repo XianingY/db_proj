@@ -30,7 +30,8 @@ services:
       LAB_WEB_ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-8000},http://127.0.0.1:${WEB_PORT:-8000}
       TZ: Asia/Shanghai
     ports:
-      - "${WEB_PORT:-8000}:${WEB_PORT:-8000}"
+      # Bind to loopback only: this is a classroom demo, not a public service.
+      - "127.0.0.1:${WEB_PORT:-8000}:${WEB_PORT:-8000}"
     command: ["--web", "--port", "${WEB_PORT:-8000}"]
     stdin_open: true
     tty: true

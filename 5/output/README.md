@@ -9,7 +9,7 @@
 - `ProjDel3/README.md`：安装、初始化、启动与验证说明。
 - `ProjDel3/scripts/bootstrap.sh`：一键准备 Python/PostgreSQL 环境、初始化并自检（幂等）。
 - `ProjDel3/docs/demo_guide.md` 与 `demo_script.md`：现场演示步骤和逐分钟讲稿（含预期画面与提问应答）。
-- `ProjDel3/evidence/`：80 项测试（六类，数量由 unittest 动态发现）、独立报表核对、真实终端和 SQL 日志。
+- `ProjDel3/evidence/`：84 项测试（六类，数量由 unittest 动态发现）、独立报表核对、真实终端和 SQL 日志。
 - `ProjDel3/requirements.lock`：本机验证通过的精确依赖版本，容器镜像按此安装，用于逐位复现。
 - `ProjDel3/web/` + `app.py --web`：课堂演示网页，与终端同源，默认仅监听 127.0.0.1（容器内由 `LAB_WEB_HOST` 放开映射）。
 - `ProjDel3/start.sh`：唯一启动入口；`Dockerfile`、`docker-compose.yml`、`.dockerignore`、`.env.example`、`scripts/docker-entrypoint.sh` 固化运行环境与配置。

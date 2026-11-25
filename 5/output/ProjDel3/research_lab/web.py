@@ -23,8 +23,8 @@ from psycopg import sql
 
 from .cli import parse_value
 from .db import DEFAULT_SCHEMA, connect
-from .reports import REPORTS, run_report
-from .service import LabService, TABLES
+from .reports import REPORTS, run_report, run_report_all
+from .service import LabService, TABLES, table_counts
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / 'web'
 MAX_REQUEST_BYTES = 1_000_000
@@ -104,21 +104,6 @@ def foreign_keys(conn):
     return [dict(row) for row in rows]
 
 
-def table_counts(conn):
-    """All 13 table counts in one round-trip; names come from the TABLES whitelist.
-
-    Previously meta_payload issued one COUNT query per table, so every page load
-    paid 13 separate database round-trips. Identifiers are composed with psycopg
-    sql.Identifier, which also removes the old string concatenation.
-    """
-    query = sql.SQL(' UNION ALL ').join(
-        sql.SQL('SELECT {}::text AS table_name, COUNT(*) AS n FROM {}').format(
-            sql.Literal(name), sql.Identifier(name))
-        for name in TABLES)
-    return {row['table_name']: row['n']
-            for row in conn.execute(query).fetchall()}
-
-
 _VERIFICATION_CACHE = {'key': None, 'value': {}}
 
 
@@ -157,7 +142,7 @@ def meta_payload(conn):
         'total_tuples': sum(counts.values()),
         'foreign_keys': foreign_keys(conn),
         'reports': [{'name': name, 'title': r['title'], 'params': list(r['params']),
-                     'sql': ' '.join(r['sql'].split())}
+                     'all': 'all_sql' in r, 'sql': ' '.join(r['sql'].split())}
                     for name, r in REPORTS.items()],
         'verification': verification,
     }
@@ -250,6 +235,11 @@ def make_handler(dsn, schema, quiet=False):
             """
             if isinstance(error, RequestError):
                 return self._send(error.status, {'ok': False, 'error': str(error)})
+            if isinstance(error, psycopg.OperationalError):
+                # Connection refused, server restart or timeout: not a client
+                # input problem. Do not leak host/DSN details to the browser.
+                return self._send(503, {'ok': False,
+                                       'error': '数据库暂时不可用，请稍后重试'})
             detail = (error.diag.message_primary
                       if isinstance(error, psycopg.Error) else str(error))
             return self._send(400, {'ok': False, 'error': detail})
@@ -263,13 +253,18 @@ def make_handler(dsn, schema, quiet=False):
             try:
                 conn = self._conn()
                 query = self._query()
+                if path == '/api/health':
+                    conn.execute('SELECT 1')
+                    return self._send(200, {'ok': True, 'db': True})
                 if path == '/api/meta':
                     return self._send(200, {'ok': True, 'meta': meta_payload(conn)})
                 if path == '/api/rows':
                     table = query.get('table')
                     if table not in TABLES:
                         raise ValueError('未知的表名')
-                    rows = LabService(conn).list_rows(table, query.get('q') or None)
+                    rows = LabService(conn).list_rows(
+                        table, query.get('q') or None,
+                        query.get('limit'), query.get('offset'))
                     return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
                 if path == '/api/record':
                     table = query.get('table')
@@ -285,6 +280,10 @@ def make_handler(dsn, schema, quiet=False):
                     name = query.get('name')
                     if name not in REPORTS:
                         raise ValueError('未知的报表')
+                    if ((query.get('all') or '').lower() in ('1', 'true', 'yes')
+                            and 'all_sql' in REPORTS[name]):
+                        rows = run_report_all(conn, name)
+                        return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
                     params = []
                     for key in REPORTS[name]['params']:
                         raw = query.get(key)

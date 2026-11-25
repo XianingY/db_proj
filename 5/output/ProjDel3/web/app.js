@@ -496,18 +496,26 @@ async function openReport(name) {
     el('details', { class: 'sql' }, el('summary', { text: '查看真实 SQL' }),
       el('pre', { text: definition.sql })));
   for (const key of definition.params) {
-    paramsBar.append(await reportParamControl(name, key));
+    const control = await reportParamControl(name, key);
+    if (definition.all) {
+      const select = control.querySelector('select');
+      if (select) select.append(el('option', { value: '', text: '全部（留空）' }));
+    }
+    paramsBar.append(control);
   }
   const run = async () => {
     holder.replaceChildren(el('p', { class: 'empty', text: '查询中…' }));
     try {
       const parts = [];
+      let listAll = false;
       for (const control of paramsBar.children) {
         const input = control.querySelector('select,input');
         if (!input || !input.dataset.key) continue;  // 无参数报表只有运行按钮
+        if (input.value === '') { listAll = true; continue; }
         parts.push(input.dataset.key + '=' + encodeURIComponent(input.value));
       }
-      const data = await api('/api/report?name=' + name + (parts.length ? '&' + parts.join('&') : ''));
+      const query = listAll ? '&all=1' : (parts.length ? '&' + parts.join('&') : '');
+      const data = await api('/api/report?name=' + name + query);
       holder.replaceChildren(...dataTable(data.rows, false),
         el('p', { class: 'countline', text: '共 ' + data.rows.length + ' 条记录' }));
     } catch (error) {
