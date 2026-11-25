@@ -2,7 +2,7 @@
 
 本仓库是数据库课程大作业的完整成果：D1 概念设计、D2 逻辑设计、D3 实现与验证，以及课程课件。**本文档面向 clone 仓库的同组组员**；给评分者的交付说明见 `5/output/README.md` 与 `5/output/ProjDel3/README.md`。
 
-当前状态：仓库已关联 `origin`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、80 项自动化测试、26 页中文报告，提交包 59 个文件。
+当前状态：仓库已关联 `origin`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、84 项自动化测试、26 页中文报告，提交包 59 个文件。
 
 ## 1. 30 秒跑起来
 

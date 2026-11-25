@@ -41,6 +41,20 @@ TABLES = {
 SUBCLASSES = {'faculty':'faculty', 'student':'student', 'collaborator':'external_collaborator'}
 
 
+def table_counts(conn):
+    """All 13 table counts in one round-trip; names come from the TABLES whitelist.
+
+    Shared by the web metadata endpoint and the terminal demo so both report the
+    same numbers with the same number of database round-trips.
+    """
+    query = sql.SQL(' UNION ALL ').join(
+        sql.SQL('SELECT {}::text AS table_name, COUNT(*) AS n FROM {}').format(
+            sql.Literal(name), sql.Identifier(name))
+        for name in TABLES)
+    return {row['table_name']: row['n']
+            for row in conn.execute(query).fetchall()}
+
+
 class LabService:
     def __init__(self, connection):
         self.conn = connection
@@ -56,10 +70,10 @@ class LabService:
             raise ValueError('主键列数不匹配')
         return sql.SQL(' AND ').join(sql.SQL('{}=%s').format(sql.Identifier(k)) for k in keys)
 
-    def list_rows(self, table, search=None):
+    def list_rows(self, table, search=None, limit=None, offset=None):
         self.metadata(table)
         query = sql.SQL('SELECT * FROM {}').format(sql.Identifier(table))
-        params = ()
+        params = []
         # Wildcards are intentionally passed through: an empty keyword lists
         # all rows, and a literal '%' is an explicit match-everything query in
         # the terminal demo. Escaping here would change the documented search
@@ -68,10 +82,28 @@ class LabService:
             columns = self.metadata(table)[2]
             query += sql.SQL(' WHERE ') + sql.SQL(' OR ').join(
                 sql.SQL('CAST({} AS TEXT) ILIKE %s').format(sql.Identifier(c)) for c in columns)
-            params = tuple('%'+search+'%' for _ in columns)
+            params.extend('%'+search+'%' for _ in columns)
         query += sql.SQL(' ORDER BY ') + sql.SQL(',').join(
             sql.Identifier(k) for k in self.metadata(table)[1])
-        return self.conn.execute(query, params).fetchall()
+        if limit is not None:
+            try:
+                limit = int(limit)
+            except (TypeError, ValueError):
+                raise ValueError('limit 必须是整数') from None
+            if not 1 <= limit <= 1000:
+                raise ValueError('limit 必须在 1 到 1000 之间')
+            query += sql.SQL(' LIMIT %s')
+            params.append(limit)
+        if offset is not None:
+            try:
+                offset = int(offset)
+            except (TypeError, ValueError):
+                raise ValueError('offset 必须是整数') from None
+            if offset < 0:
+                raise ValueError('offset 不能为负数')
+            query += sql.SQL(' OFFSET %s')
+            params.append(offset)
+        return self.conn.execute(query, tuple(params)).fetchall()
 
     def get_record(self, table, key):
         return self.conn.execute(sql.SQL('SELECT * FROM {} WHERE {}').format(

@@ -9,7 +9,9 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
+import psycopg
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
@@ -148,6 +150,38 @@ class WebServiceTests(unittest.TestCase):
         self.assertEqual(payload['record']['member_type'], 'faculty')
         status, _ = call(self.port, '/api/rows?table=nope')
         self.assertEqual(status, 400)
+
+    def test_health_endpoint(self):
+        status, payload = call(self.port, '/api/health')
+        self.assertEqual(status, 200, payload)
+        self.assertTrue(payload['ok'])
+        self.assertTrue(payload['db'])
+
+    def test_rows_pagination_is_optional_and_bounded(self):
+        status, full = call(self.port, '/api/rows?table=lab_member')
+        self.assertEqual(status, 200, full)
+        status, page = call(self.port, '/api/rows?table=lab_member&limit=5&offset=5')
+        self.assertEqual(status, 200, page)
+        self.assertEqual(page['rows'], full['rows'][5:10])
+        status, _ = call(self.port, '/api/rows?table=lab_member&limit=0')
+        self.assertEqual(status, 400)
+        status, _ = call(self.port, '/api/rows?table=lab_member&offset=-1')
+        self.assertEqual(status, 400)
+
+    def test_report_all_variant(self):
+        status, payload = call(self.port, '/api/report?name=project_status&all=1')
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(len(payload['rows']), 10)
+        # Without all=1 the previous contract stays: parameters are required.
+        status, _ = call(self.port, '/api/report?name=project_status')
+        self.assertEqual(status, 400)
+
+    def test_database_unavailable_returns_503(self):
+        with patch('research_lab.web.connect',
+                   side_effect=psycopg.OperationalError('simulated outage')):
+            status, payload = call(self.port, '/api/meta')
+        self.assertEqual(status, 503, payload)
+        self.assertFalse(payload['ok'])
 
     def test_reports_match_reference_row_for_row(self):
         params = {'project_status': 'project_id=P005', 'grant_members': 'grant_id=G001',

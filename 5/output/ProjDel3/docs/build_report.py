@@ -277,12 +277,13 @@ def report_blocks():
     para('终端表格在投影上读起来吃力，因此本阶段另加一个本机演示网页：python app.py --web 用标准库在 127.0.0.1 起 JSON API 与静态单页，不引入 Web 框架。网页不复制业务规则——写操作调用与终端相同的 LabService，十项报表调用相同的 run_report，因此回滚、依赖保护和统计口径天然一致；删除在网页上同样要求输入 DELETE。前端为原生 JS 三件套，无框架、无 CDN，断网可用；模式卡片与外键关系图、报表参数控件、完整性说明和验证数字均由 /api/meta 从真实数据库与 evidence/verification.json 生成。页面顶部另设三步使用引导与可操作元素图例：朱红实心为主操作、描边为次操作、行尾下划线为行内操作，左侧功能清单以竖线与箭头标出当前项，使投影第一眼即可分辨何处可点。')
     table(['端点 / 页面','终端对应','说明'],[
         ['GET / 与 web/ 三件套','python app.py 终端菜单','同一 LabService / run_report；编辑感极简版式'],
+        ['GET /api/health','—','轻量健康检查，仅 SELECT 1，返回 ok/db，供部署探测'],
         ['GET /api/meta','—','13 表字段与键、14 外键、各表计数、验证摘要，供模式图与统计条'],
-        ['GET /api/rows 与 /api/record','各表 1 查询','关键词查询与单条读取'],
+        ['GET /api/rows 与 /api/record','各表 1 查询','关键词查询与单条读取；rows 可选 limit/offset，默认仍返回全量'],
         ['POST /api/rows','各表 2 新增','成员/项目/设备/成果组合新增，一个事务'],
         ['PATCH /api/record','各表 3 修改','留空保留、NULL 清除，与终端一致'],
         ['DELETE /api/record','各表 4 删除','依赖保护与整体回滚；网页同样需输入 DELETE'],
-        ['GET /api/report','1→3/4/5、2→3/4、3→1–5','十项报表，参数下拉与日期控件，附口径与真实 SQL']])
+        ['GET /api/report','1→3/4/5、2→3/4、3→1–5','十项报表，参数下拉与日期控件，附口径与真实 SQL；带 all_sql 的报表可用 all=1 列出全部']])
     para('网页只监听回环地址、不含登录与权限，定位为课堂演示而非生产服务；写请求校验本机 Origin、application/json、请求长度和 JSON 对象结构。tests/test_web.py 用随机 schema 与 ephemeral 端口起真服务，覆盖元数据、静态页与路径穿越防护、查询、十项报表逐行一致、组合新增、违规整体回滚、请求校验、真实数据库连接释放与受保护删除。')
     add('image',('evidence/menu_snapshot.png','图 1：由真实终端演示日志生成的菜单与操作证据（非系统截屏）。'))
 

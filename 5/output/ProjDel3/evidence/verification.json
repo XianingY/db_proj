@@ -1,10 +1,10 @@
 {
-  "verified_at": "2026-11-25T14:16:12.825215+08:00",
+  "verified_at": "2026-11-25T14:38:08.720643+08:00",
   "python": "3.13.18",
   "postgresql": "18.7 (Homebrew)",
   "schema_isolation": "fresh random schema",
   "status": "passed",
-  "unittest_count": 80,
+  "unittest_count": 84,
   "unittest_exit_code": 0,
   "standalone_sql_exit_code": 0,
   "terminal_demo_exit_code": 0,

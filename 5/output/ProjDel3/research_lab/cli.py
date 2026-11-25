@@ -6,13 +6,12 @@ so existing imports (tests, app.py, web.py) keep working unchanged.
 from datetime import date
 
 import psycopg
-from psycopg import sql
 
 from .display import (HARD_TOKEN_LIMIT, HEADER_WIDTH_CAP, LABELS, MIN_COLUMN_WIDTH,
                       display_rows, emit, fit_sizes, minimum_width, parse_value,
                       pretty, record_lines, table_lines, tokens, width, wrapped)
 from .reports import REPORTS, run_report, run_report_all
-from .service import LabService, TABLES, SUBCLASSES
+from .service import LabService, TABLES, SUBCLASSES, table_counts
 
 
 class Terminal:
@@ -203,9 +202,9 @@ class Terminal:
 def demo(conn):
     print('Research Lab Manager D3 · 只读 SQL 演示 · Budget=USD')
     print('时区 Asia/Shanghai；设备当前使用由未结束记录判定。')
+    counts = table_counts(conn)
     for table,(label,_,_) in TABLES.items():
-        n = conn.execute(sql.SQL('SELECT COUNT(*) AS n FROM {}').format(sql.Identifier(table))).fetchone()['n']
-        print(f'{table} ({label}): {n}')
+        print(f'{table} ({label}): {counts[table]}')
     defaults = {'project_id':'P001','grant_id':'G001','equipment_id':'E001','end_before':date(2025,1,1)}
     for name,definition in REPORTS.items():
         print(f'\n=== {name} | {definition["title"]} ===')

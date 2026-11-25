@@ -67,19 +67,23 @@ test_schema_has_original_13_primary_keys_and_14_no_action_foreign_keys (test_rep
 test_truncate_cannot_bypass_mandatory_authorship (test_reports.ReportTests.test_truncate_cannot_bypass_mandatory_authorship) ... ok
 test_api_requests_do_not_accumulate_database_connections (test_web.WebServiceTests.test_api_requests_do_not_accumulate_database_connections) ... ok
 test_cross_origin_write_is_refused (test_web.WebServiceTests.test_cross_origin_write_is_refused) ... ok
+test_database_unavailable_returns_503 (test_web.WebServiceTests.test_database_unavailable_returns_503) ... ok
+test_health_endpoint (test_web.WebServiceTests.test_health_endpoint) ... ok
 test_invalid_create_rolls_back_entirely (test_web.WebServiceTests.test_invalid_create_rolls_back_entirely) ... ok
 test_member_create_update_delete_round_trip (test_web.WebServiceTests.test_member_create_update_delete_round_trip) ... ok
 test_meta_matches_reference_counts_and_reports (test_web.WebServiceTests.test_meta_matches_reference_counts_and_reports) ... ok
 test_nested_payload_types_are_validated (test_web.WebServiceTests.test_nested_payload_types_are_validated) ... ok
 test_non_object_json_is_a_structured_client_error (test_web.WebServiceTests.test_non_object_json_is_a_structured_client_error) ... ok
 test_protected_delete_is_refused (test_web.WebServiceTests.test_protected_delete_is_refused) ... ok
+test_report_all_variant (test_web.WebServiceTests.test_report_all_variant) ... ok
 test_reports_match_reference_row_for_row (test_web.WebServiceTests.test_reports_match_reference_row_for_row) ... ok
 test_request_length_is_validated_before_reading (test_web.WebServiceTests.test_request_length_is_validated_before_reading) ... ok
 test_rows_listing_search_and_record (test_web.WebServiceTests.test_rows_listing_search_and_record) ... ok
+test_rows_pagination_is_optional_and_bounded (test_web.WebServiceTests.test_rows_pagination_is_optional_and_bounded) ... ok
 test_static_index_is_served_and_traversal_blocked (test_web.WebServiceTests.test_static_index_is_served_and_traversal_blocked) ... ok
 test_write_requires_json_content_type (test_web.WebServiceTests.test_write_requires_json_content_type) ... ok
 
 ----------------------------------------------------------------------
-Ran 80 tests in 3.073s
+Ran 84 tests in 56.404s
 
 OK
