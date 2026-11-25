@@ -2,7 +2,7 @@
 
 本仓库是数据库课程大作业的完整成果：D1 概念设计、D2 逻辑设计、D3 实现与验证，以及课程课件。**本文档面向 clone 仓库的同组组员**；给评分者的交付说明见 `5/output/README.md` 与 `5/output/ProjDel3/README.md`。
 
-当前状态：`main` 已同步到 `origin/main`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、80 项自动化测试、21 页中文报告，提交包 57 个文件。
+当前状态：仓库已关联 `origin`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、80 项自动化测试、26 页中文报告，提交包 59 个文件。
 
 ## 1. 30 秒跑起来
 
@@ -64,7 +64,7 @@ WEB_PORT=8080 sh start.sh         # 换端口
 
 | 用途 | 文件 |
 | --- | --- |
-| 看报告 | `5/output/ProjDel3/第三次小组作业报告.pdf`（21 页）、`.docx`、`.md` |
+| 看报告 | `5/output/ProjDel3/第三次小组作业报告.pdf`（26 页）、`.docx`、`.md` |
 | 交作业 | `5/output/ProjDel3.zip` |
 | 环境、依赖、配置、手工命令 | `5/output/ProjDel3/README.md` |
 | 演示 | `5/output/ProjDel3/docs/demo_guide.md`（评分点速查 + 8–10 分钟流程）、`demo_script.md`（逐分钟讲稿与问答） |
@@ -86,7 +86,7 @@ WEB_PORT=8080 sh start.sh         # 换端口
    ```
 4. **Docker 源码改动**：`start.sh` 为保持幂等不会自动 `--build`。改了 `research_lab/`、`SQL/`、`web/` 之后需在包目录执行 `docker compose up -d --build app`，否则容器仍运行旧镜像。
 5. **演示数据**：默认 schema `research_lab_del3` 与 `evidence/sample_reference.json` 一致（13 表 / 385 元组）。课堂演示会增删数据，`sh start.sh check` 会提示漂移但**不会自动改写**。需要干净实例请用新 schema：`python app.py --schema <新名称> --init`。
-6. **凭证**：`.env.example` 与 compose 中的 `lab_pass` 只是本地容器 PostgreSQL 的示例口令，不是真实凭证；仓库已被 GitGuardian 扫描，请勿引入任何 token / API key / 私钥。真实口令放本机 `.env`，或用 `PGPASSWORD` / `.pgpass`。
+6. **凭证**：`.env.example` 与 compose 中的 `local-demo-only-change-me` 是本地容器 PostgreSQL 的占位口令，不是真实凭证；仓库已被 GitGuardian 扫描，请勿引入任何 token / API key / 私钥。真实口令放本机 `.env`，或用 `PGPASSWORD` / `.pgpass`。
 7. **提交规范**：英文 conventional commits（`type(scope): ...`），每个语义改动一个提交；提交与推送前先确认。`origin` 已关联，`main` 跟踪 `origin/main`；tag `del3-submission` 仍指向较早提交，若按 tag 交付需先确认后更新。
 
 ## 6. 常见问题

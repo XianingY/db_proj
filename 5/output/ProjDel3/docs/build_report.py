@@ -75,6 +75,57 @@ def foreign_key_rows():
     return rows
 
 
+def schema_columns():
+    """Parse SQL/01_create_tables.sql into (table, column, type, nullable, keys) rows.
+
+    The dictionary in the report is derived from the same DDL that creates the
+    database, so it cannot drift away from the actual schema. CHECK details are
+    intentionally left to the DDL text; this table marks PK / UQ / FK only.
+    """
+    ddl = (ROOT / 'SQL' / '01_create_tables.sql').read_text(encoding='utf-8')
+    rows = []
+    for block in re.finditer(r'CREATE TABLE\s+(\w+)\s*\((.*?)\n\);', ddl, re.S):
+        table, body = block.group(1), block.group(2)
+        tags = {}
+        for line in body.splitlines():
+            for pattern, tag in ((r'PRIMARY KEY', 'PK'), (r'UNIQUE', 'UQ'), (r'FOREIGN KEY', 'FK')):
+                match = re.match(r'\s*CONSTRAINT\s+\w+\s+' + pattern + r'\s*\(([^)]+)\)', line)
+                if match:
+                    for column in match.group(1).split(','):
+                        tags.setdefault(column.strip(), []).append(tag)
+        for line in body.splitlines():
+            if line.strip().startswith('CONSTRAINT') or not line.strip():
+                continue
+            match = re.match(
+                r'\s*(\w+)\s+([A-Za-z]+(?:\([^)]*\))?(?:\s+WITHOUT TIME ZONE)?)'
+                r'(\s+NOT NULL)?\s*,?\s*$', line)
+            if not match:
+                continue
+            column, type_name, not_null = match.group(1), match.group(2), match.group(3)
+            marks = tags.get(column, [])
+            rows.append([table, column, type_name, '否' if not_null else '是',
+                         '/'.join(marks) if marks else '—'])
+    return rows
+
+
+def index_rows():
+    """The six query indexes with the access path each one serves."""
+    purpose = {
+        'ix_participation_project': '按项目列参与成员、给定资助查成员',
+        'ix_grant_project': '项目资助汇总与 Top5 分组',
+        'ix_authorship_publication': '按成果统计作者、导师成果去重',
+        'ix_mentorship_mentor': '按导师汇总被指导者成果',
+        'ix_usage_device_time': '当前使用者与使用区间重叠检查',
+        'ix_usage_member': '按成员查询使用记录',
+    }
+    ddl = (ROOT / 'SQL' / '02_integrity.sql').read_text(encoding='utf-8')
+    rows = []
+    for match in re.finditer(r'CREATE INDEX\s+(\w+)\s+ON\s+(\w+)\s*\(([^)]+)\)', ddl):
+        name, table, columns = match.group(1), match.group(2), match.group(3)
+        rows.append([name, f'{table}({columns})', purpose.get(name, '')])
+    return rows
+
+
 def report_blocks():
     v=json.loads((ROOT/'evidence/verification.json').read_text())
     ref=json.loads((ROOT/'evidence/sample_reference.json').read_text())
@@ -112,32 +163,33 @@ def report_blocks():
     para('实现范围涵盖原题三个主菜单全部条目。题目明确「不必做复杂 GUI」，因此核心界面是命令行菜单，开发精力用于事务、完整性与统计正确性；§4.4 的本机网页只解决投影可读性，与终端共享同一业务层，不是另一套应用或第二套业务规则。附加的资助、成果、作者、装置和参与管理用于保持数据可维护，不改变原需求的小世界。')
     sub('1.1 原题要求逐条对照')
     para('下表把 ProjDel3 题目 PDF 的每一条要求对应到程序入口、SQL/代码位置和报告章节，便于按条核对；“辅助”指本组自行增加、题目未强制的功能。')
-    table(['原题要求（ProjDel3 PDF）','程序位置','报告章节'],[
-        ['Phase 3 须说明本阶段目标','报告 §1','§1'],
-        ['须说明数据库实例的创建','app.py --init；SQL/01–03','§3'],
-        ['须说明应用程序的开发','research_lab/（db/cli/service/reports）','§4'],
-        ['须记录相对 Deliverable 2 的关系模式修订','SQL/02_integrity.sql；预算单位约定','§2.2'],
-        ['须记录遇到的困难及解决方案的理由','报告 §7','§7'],
-        ['程序必须能运行','sh start.sh；'+str(v['unittest_count'])+' 项测试','§3.1、§6.3'],
-        ['样例数据须足以完成并演示全部任务','SQL/03_sample_data.sql，'+str(v['total_sample_tuples'])+' 条元组','§3.2'],
-        ['界面须菜单驱动且实用，不必做复杂 GUI','三级中文终端菜单 research_lab/cli.py','§4.1'],
-        ['1 成员查询/新增/修改/删除','主菜单 1 → 1（含 7/8/9 子类资料）','§4.2'],
-        ['1 项目查询/新增/修改/删除','主菜单 1 → 2（含 6 参与记录）','§4.2'],
-        ['1 显示某个项目的状态','主菜单 1 → 3 project_status','§5.1'],
-        ['1 显示在某资助所资助项目上工作过的成员','主菜单 1 → 4 grant_members','§5.1'],
-        ['1 显示在同一项目上工作过的成员之间的指导关系','主菜单 1 → 5 shared_project_mentorship','§5.1'],
-        ['2 设备查询/新增/修改/删除','主菜单 2 → 1（含 5 具体装置）','§4.2'],
-        ['2 设备使用记录查询/新增/修改/删除','主菜单 2 → 2','§4.2'],
-        ['2 显示某台设备的状态','主菜单 2 → 3 equipment_status','§5.1'],
-        ['2 显示当前正在使用某设备的成员及其在做的项目','主菜单 2 → 4 equipment_current_users','§5.1'],
-        ['3 按资助总额排出前五个项目及各自金额，降序','主菜单 3 → 1 top_funded_projects','§5.2'],
-        ['3 找出被指导者合计成果最多的导师','主菜单 3 → 2 mentor_publications','§5.3'],
-        ['3 按专业和发表年份统计学生成果总数','主菜单 3 → 3 student_publications_by_major_year','§5.4'],
-        ['3 给定日期 X，找出 X 之前结束的项目及各自资助数','主菜单 3 → 4 ended_projects','§5.5'],
-        ['3 找出学生成果最多的三个年份','主菜单 3 → 5 top_student_years','§5.6'],
-        ['每表须有足够元组的 SQL 填充脚本','SQL/03_sample_data.sql（13 表全部非空）','§3.2'],
-        ['学期末须现场演示','docs/demo_guide.md（8–10 分钟流程）','§6.3'],
-        ['辅助：资助/成果/作者/指导/参与维护','主菜单 1 → 6–10；2 → 5；3 → 6–8','§4.2']])
+    para('状态指第三阶段的实现与证据；「学期末须现场演示」属课程流程，演示动线与讲稿已备（docs/demo_guide.md、demo_script.md），预约与现场展示仍待完成。')
+    table(['原题要求（ProjDel3 PDF）','程序位置','报告章节','状态'],[
+        ['Phase 3 须说明本阶段目标','报告 §1','§1','已完成'],
+        ['须说明数据库实例的创建','app.py --init；SQL/01–03','§3','已完成'],
+        ['须说明应用程序的开发','research_lab/（db/cli/service/reports）','§4','已完成'],
+        ['须记录相对 Deliverable 2 的关系模式修订','SQL/02_integrity.sql；预算单位约定','§2.2','已完成'],
+        ['须记录遇到的困难及解决方案的理由','报告 §7','§7','已完成'],
+        ['程序必须能运行','sh start.sh；'+str(v['unittest_count'])+' 项测试','§3.1、§6.3','已验证'],
+        ['样例数据须足以完成并演示全部任务','SQL/03_sample_data.sql，'+str(v['total_sample_tuples'])+' 条元组','§3.2','已完成'],
+        ['界面须菜单驱动且实用，不必做复杂 GUI','三级中文终端菜单 research_lab/cli.py','§4.1','已完成'],
+        ['1 成员查询/新增/修改/删除','主菜单 1 → 1（含 7/8/9 子类资料）','§4.2','已完成'],
+        ['1 项目查询/新增/修改/删除','主菜单 1 → 2（含 6 参与记录）','§4.2','已完成'],
+        ['1 显示某个项目的状态','主菜单 1 → 3 project_status','§5.1','已完成'],
+        ['1 显示在某资助所资助项目上工作过的成员','主菜单 1 → 4 grant_members','§5.1','已完成'],
+        ['1 显示在同一项目上工作过的成员之间的指导关系','主菜单 1 → 5 shared_project_mentorship','§5.1','已完成'],
+        ['2 设备查询/新增/修改/删除','主菜单 2 → 1（含 5 具体装置）','§4.2','已完成'],
+        ['2 设备使用记录查询/新增/修改/删除','主菜单 2 → 2','§4.2','已完成'],
+        ['2 显示某台设备的状态','主菜单 2 → 3 equipment_status','§5.1','已完成'],
+        ['2 显示当前正在使用某设备的成员及其在做的项目','主菜单 2 → 4 equipment_current_users','§5.1','已完成'],
+        ['3 按资助总额排出前五个项目及各自金额，降序','主菜单 3 → 1 top_funded_projects','§5.2','已完成'],
+        ['3 找出被指导者合计成果最多的导师','主菜单 3 → 2 mentor_publications','§5.3','已完成'],
+        ['3 按专业和发表年份统计学生成果总数','主菜单 3 → 3 student_publications_by_major_year','§5.4','已完成'],
+        ['3 给定日期 X，找出 X 之前结束的项目及各自资助数','主菜单 3 → 4 ended_projects','§5.5','已完成'],
+        ['3 找出学生成果最多的三个年份','主菜单 3 → 5 top_student_years','§5.6','已完成'],
+        ['每表须有足够元组的 SQL 填充脚本','SQL/03_sample_data.sql（13 表全部非空）','§3.2','已完成'],
+        ['学期末须现场演示','docs/demo_guide.md（8–10 分钟流程）','§6.3','待完成'],
+        ['辅助：资助/成果/作者/指导/参与维护','主菜单 1 → 6–10；2 → 5；3 → 6–8','§4.2','已完成']])
 
     h('2 与前两次提交的连续性及结构修订')
     sub('2.1 原关系模式逐字节保留')
@@ -346,6 +398,21 @@ def report_blocks():
     para('γ<major, publication_year; COUNT_DISTINCT(publication_id) → publication_count>( student JOIN<member_id> authorship JOIN<publication_id> publication )')
     para('COUNT_DISTINCT 对应 SQL 的 COUNT(DISTINCT p.publication_id)：同专业多名学生合著只计一次，跨专业成果在每个相关专业分别计一次；查询不补零年份，实际输出 22 个非空分组。mentor_publications 的全并列与 top_student_years 的全局去重同样需要聚集后再比较或截断，见 §5.3、§5.6。')
     para('三式分别覆盖选择/投影/连接、外连接与聚集、分组去重聚集，把课件 ch6 的基本运算与 08-09 课件的聚集、外连接、去重串接到本阶段十项报表；完整 SQL 与逐行结果仍以附录 A 和 evidence/ 为准。')
+    add('pagebreak','')
+    h('附录 C 概念设计来源（第一次提交的 EER 图）')
+    para('两张图直接取自第一次提交（1/proj_del1_17/附图），用于说明第三阶段 13 张表的来源，而不是另一套重新绘制的模式。图 1 用传统记号（1/N 与单双线），图 2 用 (min, max) 记号；两图的实体、属性、联系、特化与键相同，只是结构约束标法不同。')
+    add('image', ('evidence/eer_traditional.png', '图 3：第一次提交的 EER 图（传统表示法）'))
+    add('image', ('evidence/eer_minmax.png', '图 4：同一模式的 (min, max) 表示法'))
+    para('第三阶段没有改这些实体与联系，只把图中无法直接强制的条件落实为触发器、CHECK 与事务检查（§2.4），并补了完整性机制与索引。')
+    add('pagebreak','')
+    h('附录 D 数据字典')
+    columns = schema_columns()
+    para('下表由 SQL/01_create_tables.sql 解析生成，与建表脚本同源；共 13 张表、'+str(len(columns))+' 个字段。可空=「是」表示允许 NULL；键列用 PK / UQ / FK 标记；行内 CHECK 的完整表达式见建表脚本。')
+    table(['表','字段','类型','可空','键'], columns)
+    add('pagebreak','')
+    h('附录 E 索引与适用场景')
+    para('六个索引来自 SQL/02_integrity.sql，服务于外键连接与时间区间查询。当前样例只有 '+str(v['total_sample_tuples'])+' 行，优化器可能仍选择顺序扫描；这些索引面向数据增长后的访问路径，本报告不声称在当前数据量上已带来加速。')
+    table(['索引','表与列','支撑的访问路径'], index_rows())
     return b
 
 
@@ -487,7 +554,9 @@ def pdf_report(blocks,path):
             data=[[Paragraph(escape(str(c)).replace('\n','<br/>'),cell) for c in row] for row in [headers]+rows]
             # Schema PK text needs enough space; source/function tables use equal flexible widths.
             if headers[0]=='表名': widths=[available*x for x in (.30,.16,.43,.11)]
-            elif headers[0]=='原题要求（ProjDel3 PDF）': widths=[available*x for x in (.52,.30,.18)]
+            elif headers[0]=='原题要求（ProjDel3 PDF）': widths=[available*x for x in (.46,.24,.18,.12)]
+            elif headers[0]=='表': widths=[available*x for x in (.16,.28,.30,.08,.18)]
+            elif headers[0]=='索引': widths=[available*x for x in (.30,.32,.38)]
             elif headers[0]=='关系': widths=[available*x for x in (.24,.50,.26)]
             elif headers[0]=='第一次报告的图外约束': widths=[available*x for x in (.30,.44,.26)]
             elif len(headers)==2:widths=[available*.28,available*.72]
