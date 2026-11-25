@@ -33,7 +33,8 @@ def main():
               'mentor_publications','equipment_current_users','TRUNCATE','附录A',
               '原题要求逐条对照','bootstrap.sh','start.sh','top_student_years','课堂演示网页','ExecutiveSummary',
               '外键约束','终端显示测试','课堂网页测试',
-              '函数依赖','BCNF','图外约束','关系代数','附录B','γ']
+              '函数依赖','BCNF','图外约束','关系代数','附录B','γ',
+              '数据字典','索引','EER']
     for item in required:
         for label,content in [('PDF',compact),('DOCX',re.sub(r'\s+','',doc_text)),('MD',re.sub(r'\s+','',markdown))]:
             assert item in content,(label,item)
@@ -43,8 +44,8 @@ def main():
     # Songti has no glyph for U+22C8 / U+27D5 / U+2131; reportlab emits NUL for
     # those codepoints. Fail loudly instead of shipping a PDF with missing symbols.
     assert '\x00' not in text,'PDF text contains a missing glyph (NUL from the embedded font)'
-    assert len(doc.inline_shapes)==2
-    assert len(doc.tables)==18, '新增函数依赖与图外约束两张表后应为 18 张表'
+    assert len(doc.inline_shapes)==4
+    assert len(doc.tables)==20, '新增数据字典与索引两张表后应为 20 张表'
     # 防回归：文档里不允许再出现与真实运行不符的旧测试数字或旧分类规模。
     # 只禁止真正的旧口径：51 项时代的总数，以及已改名/改数的旧分类行。
     # 注意“25 项数据库业务测试”如今仍是正确分类，不能列入禁用词。
@@ -90,7 +91,7 @@ def main():
         bounds={'word_count':words,'all_words_inside_page':True}
     validation={'status':'passed','pdf_pages':len(reader.pages),'pdf_bytes':pdf.stat().st_size,
         'docx_tables':len(doc.tables),
-        'docx_tables_expected':18,
+        'docx_tables_expected':20,
         'unittest_count_in_documents':v['unittest_count'],'docx_images':len(doc.inline_shapes),
         'all_ten_report_sql_keys_present':True,'required_content_present_in_all_formats':True,
         'embedded_truetype_fonts':sorted(set(embedded)),'text_bounds':bounds,

@@ -80,6 +80,6 @@ test_static_index_is_served_and_traversal_blocked (test_web.WebServiceTests.test
 test_write_requires_json_content_type (test_web.WebServiceTests.test_write_requires_json_content_type) ... ok
 
 ----------------------------------------------------------------------
-Ran 80 tests in 3.181s
+Ran 80 tests in 3.073s
 
 OK

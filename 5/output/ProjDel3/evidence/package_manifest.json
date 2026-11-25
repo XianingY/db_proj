@@ -8,8 +8,8 @@
     },
     {
       "path": ".env.example",
-      "bytes": 521,
-      "sha256": "566ebd36a11b7c08387c22480ebe3b10c5155e5f44a999c9ebf6461664ed6413"
+      "bytes": 538,
+      "sha256": "a41991a170c5d54700a563ca94d24b6557a0b9eda302daccc6b34e73f368f212"
     },
     {
       "path": "Dockerfile",
@@ -18,8 +18,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 14178,
-      "sha256": "7f8b1f8d1a03844c788986bd422504da58ebed785be6fb35c4164200826bd837"
+      "bytes": 14225,
+      "sha256": "7901f103c453f249c7e0e3b812fe26f59a00a20f20b1fccff202275554d98bbb"
     },
     {
       "path": "SQL/01_create_tables.sql",
@@ -53,13 +53,13 @@
     },
     {
       "path": "docker-compose.yml",
-      "bytes": 1181,
-      "sha256": "91d8184f673b546980117cd1620a4a2abb1a0cad500fa29e4623aa9c02633b84"
+      "bytes": 1215,
+      "sha256": "4d0462e65efe5baa264d556dd2a1c10a0bcdcc7070d0965fd23131f7bb488dbc"
     },
     {
       "path": "docs/build_report.py",
-      "bytes": 59697,
-      "sha256": "3962c5145199b9559d1753e7fcef1935e7349da65ddebf799fa83a9231e2a965"
+      "bytes": 64583,
+      "sha256": "e25cd3f8e1b876501a05c14e48ae3d91695fa212e68241bf130b28efbcdd96ae"
     },
     {
       "path": "docs/check_demo_data.py",
@@ -68,13 +68,13 @@
     },
     {
       "path": "docs/demo_guide.md",
-      "bytes": 6810,
-      "sha256": "d5c35162d042951444a093df407de84117de206f7051f33d25450b106c01f394"
+      "bytes": 7990,
+      "sha256": "2d484412d1452c62f70b31006190a752d11123bc17dbd79f705083a1345f0c12"
     },
     {
       "path": "docs/demo_script.md",
-      "bytes": 8856,
-      "sha256": "d329beda314c5e46a9272f8a581e4edb2db48386315ecdd1c08421c1836898d3"
+      "bytes": 9174,
+      "sha256": "fd823bc0f267eb648e0afef0a336bd467eaff793be0948aa7b516c6df60490de"
     },
     {
       "path": "docs/implementation_plan.md",
@@ -93,8 +93,8 @@
     },
     {
       "path": "docs/verify_documents.py",
-      "bytes": 5576,
-      "sha256": "f57f779938706024d196d63144906df75eded7819035b7a011f1e056c25889e7"
+      "bytes": 5615,
+      "sha256": "d12e5dfe7728336bd2eed18cfd1578a4e7a52597ea47129b338a46b5694e99a6"
     },
     {
       "path": "docs/verify_submission.py",
@@ -108,8 +108,18 @@
     },
     {
       "path": "evidence/document_validation.json",
-      "bytes": 743,
-      "sha256": "ebfbe5c5fee4d2733c30a22906ff9bb23cab912409e058e4bb7e49646454d38f"
+      "bytes": 744,
+      "sha256": "6650236e80244c870a7461ce98193c9bcfb513b877bfe70650f9701e4e5570e9"
+    },
+    {
+      "path": "evidence/eer_minmax.png",
+      "bytes": 335060,
+      "sha256": "1206a41cb84477ab2345b657c27456569f3b35b3b5016f04e884e54970fcac81"
+    },
+    {
+      "path": "evidence/eer_traditional.png",
+      "bytes": 329774,
+      "sha256": "4fea54b8f7d3ceec4ea14c942f4b6b94dea757bca4f307090e320a4585a54eb1"
     },
     {
       "path": "evidence/menu_demo.txt",
@@ -149,12 +159,12 @@
     {
       "path": "evidence/unittest.log",
       "bytes": 9757,
-      "sha256": "9f1261496145695a16c43d7248026d597635085e10fbdb4ff9f2984a89165f11"
+      "sha256": "3a16198e34df162f8f866cde042e9b60143be52e35d2ff19bd94c8bab486b6fc"
     },
     {
       "path": "evidence/verification.json",
       "bytes": 25500,
-      "sha256": "a335eb2a2e9c024f3b5f6cb61cbfc31c788d0f7af6f80def1b3ba99b6c3754ce"
+      "sha256": "843210b81abd9136d77579f5effa5c1b43831973af137cbc9958d20660612599"
     },
     {
       "path": "requirements-docs.txt",
@@ -213,8 +223,8 @@
     },
     {
       "path": "scripts/docker-entrypoint.sh",
-      "bytes": 845,
-      "sha256": "a8e95401c8b06c8b132eed4305b6952d9a8f2e4d9f3cb80bf98bca8f5cda0a82"
+      "bytes": 862,
+      "sha256": "f6b8396d8138c2612ede5e52247bf86b94f42576669a9d400398a53912bd4b65"
     },
     {
       "path": "start.sh",
@@ -268,18 +278,18 @@
     },
     {
       "path": "第三次小组作业报告.docx",
-      "bytes": 255461,
-      "sha256": "3371fb10c146176fd73325013b54dfe289b108a402ab804b6af31148b2beceb0"
+      "bytes": 909507,
+      "sha256": "21486be8a68364161f22c0ac8235ec43349ac055587dc6ac643efe5ded570707"
     },
     {
       "path": "第三次小组作业报告.md",
-      "bytes": 51914,
-      "sha256": "ed1ec4ea4d2e1b065e76ae0a9b7b0116a21abaa6cc209296e648a0fdad01f8cc"
+      "bytes": 57685,
+      "sha256": "49caa9b8100a86e7b2e9f51567d2bb85ff9d20d57e7f4a002eaf68b9253ad471"
     },
     {
       "path": "第三次小组作业报告.pdf",
-      "bytes": 520870,
-      "sha256": "6c108bcc6356e033e922787cadb15b8a2b89177a5d07e4f4b680e381f0cfbebe"
+      "bytes": 1242039,
+      "sha256": "759213ef66bd43811f25581f892f00e5dd71be76ac6ffb6916bcee4d20175316"
     }
   ]
 }

@@ -3,7 +3,7 @@
 # Idempotent: an existing schema is never dropped, cleared, or re-seeded.
 set -eu
 
-: "${LAB_DSN:=host=db port=5432 dbname=research_lab user=lab_user password=lab_pass}"
+: "${LAB_DSN:=host=db port=5432 dbname=research_lab user=lab_user password=local-demo-only-change-me}"
 : "${LAB_SCHEMA:=research_lab_del3}"
 export LAB_DSN LAB_SCHEMA
 

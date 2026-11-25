@@ -96,7 +96,7 @@ export LAB_DSN='host=127.0.0.1 port=5432 dbname=research_lab user=lab_user'
 |---|---|---|
 | `LAB_RUNTIME` | `auto` | `docker` / `native` / 自动探测 |
 | `WEB_PORT` | `8000` | 演示网页端口（宿主与容器内保持一致） |
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `research_lab` / `lab_user` / `lab_pass` | 容器数据库凭证，可写入 `.env` |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `research_lab` / `lab_user` / `local-demo-only-change-me` | 容器数据库凭证，可写入 `.env`；仅为本地演示占位符 |
 | `LAB_SCHEMA` | `research_lab_del3` | 专用 schema，已存在时不覆盖 |
 | `LAB_DSN` | `dbname=postgres`（容器内指向 `db` 服务） | 连接串；密码用 `PGPASSWORD` 或 `.pgpass`，不写入代码与提交包 |
 | `LAB_WEB_HOST` | `127.0.0.1`（容器内 `0.0.0.0`） | 网页监听地址 |
