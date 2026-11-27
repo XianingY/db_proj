@@ -10,7 +10,7 @@ import psycopg
 from .display import (HARD_TOKEN_LIMIT, HEADER_WIDTH_CAP, LABELS, MIN_COLUMN_WIDTH,
                       display_rows, emit, fit_sizes, minimum_width, parse_value,
                       pretty, record_lines, table_lines, tokens, width, wrapped)
-from .reports import REPORTS, run_report, run_report_all
+from .reports import REPORTS, run_report, run_report_all, run_report_filtered
 from .service import LabService, TABLES, SUBCLASSES, table_counts
 
 
@@ -124,6 +124,12 @@ class Terminal:
         definition = REPORTS[name]
         params = []
         list_all = False
+        filter_value = None
+        if not definition['params'] and definition.get('filter_param'):
+            fp = definition['filter_param']
+            raw = input(f'{LABELS.get(fp,fp)} ({fp})，留空列出全部: ').strip()
+            if raw:
+                filter_value = raw
         for key in definition['params']:
             if key=='end_before':
                 while True:
@@ -139,10 +145,28 @@ class Terminal:
                     list_all = True
                 params.append(raw)
         print(f'\n【{definition["title"]}】')
-        if list_all:
+        if filter_value is not None:
+            display_rows(run_report_filtered(self.conn,name,filter_value))
+        elif list_all:
             display_rows(run_report_all(self.conn,name))
         else:
             display_rows(run_report(self.conn,name,tuple(params)))
+
+    def member_detail_view(self):
+        member_id = input('成员编号 (member_id): ').strip()
+        detail = self.service.member_detail(member_id)
+        print('\n【成员基本资料】')
+        display_rows([detail['member']])
+        print(f'\n【子类资料 · {TABLES[detail["subtype_table"]][0]}】')
+        display_rows([detail['subtype']] if detail['subtype'] else [])
+        print('\n【参与项目】')
+        display_rows(detail['participations'])
+        if detail['mentor']:
+            print('\n【指导老师 / 上级导师】')
+            display_rows([detail['mentor']])
+        if detail['mentees']:
+            print('\n【被指导成员】')
+            display_rows(detail['mentees'])
 
     def submenu(self,title,choices):
         while True:
@@ -159,6 +183,8 @@ class Terminal:
             _,kind,name = choices[choice]
             if kind=='crud':
                 self.crud(name)
+            elif kind=='detail':
+                self.guard(self.member_detail_view)
             else:
                 self.guard(lambda:self.report(name))
 
@@ -171,7 +197,8 @@ class Terminal:
             '6':('项目参与管理','crud','project_participation'),
             '7':('教师资料管理','crud','faculty'), '8':('学生资料管理','crud','student'),
             '9':('合作者资料管理','crud','external_collaborator'),
-            '10':('指导关系管理','crud','mentorship')}
+            '10':('指导关系管理','crud','mentorship'),
+            '11':('成员完整详情（含子类与参与）','detail','lab_member')}
         second = {
             '1':('设备管理','crud','equipment'), '2':('使用记录管理','crud','equipment_usage'),
             '3':('显示设备状态','report','equipment_status'),

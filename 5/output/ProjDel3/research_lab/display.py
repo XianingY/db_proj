@@ -56,6 +56,16 @@ def pretty(value):
         return 'NULL'
     if isinstance(value, Decimal):
         return f'{value:.2f}'
+    if isinstance(value, list) and all(
+        isinstance(item, dict) and 'device_number' in item and 'status' in item
+        for item in value
+    ):
+        if not value:
+            return '无'
+        return '; '.join(
+            f"{d['device_number']}({d['status']}, {d.get('purchase_date', '')})"
+            for d in value
+        )
     if isinstance(value, (dict,list)):
         return json.dumps(value,ensure_ascii=False,default=str)
     return str(value).replace('\n',' ')

@@ -23,15 +23,18 @@ test_22_raw_sql_member_missing_subclass (test_application.ApplicationTests.test_
 test_23_whitelist_and_id_immutability (test_application.ApplicationTests.test_23_whitelist_and_id_immutability) ... ok
 test_24_no_destructive_reinitialization (test_application.ApplicationTests.test_24_no_destructive_reinitialization) ... ok
 test_25_invalid_hours_and_nan_budget (test_application.ApplicationTests.test_25_invalid_hours_and_nan_budget) ... ok
+test_26_member_detail_returns_subtype_participations_and_mentorship (test_application.ApplicationTests.test_26_member_detail_returns_subtype_participations_and_mentorship) ... ok
 test_empty_parameter_lists_all_statuses (test_cli.TerminalTests.test_empty_parameter_lists_all_statuses) ... ok
 test_eof_and_invalid_menu_selection (test_cli.TerminalTests.test_eof_and_invalid_menu_selection) ... ok
 test_equipment_and_usage_crud_from_terminal (test_cli.TerminalTests.test_equipment_and_usage_crud_from_terminal) ... ok
 test_invalid_add_rolls_back_and_menu_continues (test_cli.TerminalTests.test_invalid_add_rolls_back_and_menu_continues) ... ok
 test_member_crud_is_persisted_and_removed (test_cli.TerminalTests.test_member_crud_is_persisted_and_removed) ... ok
+test_member_detail_and_filtered_mentorship_from_terminal (test_cli.TerminalTests.test_member_detail_and_filtered_mentorship_from_terminal) ... ok
 test_project_crud_from_terminal (test_cli.TerminalTests.test_project_crud_from_terminal) ... ok
 test_read_only_demo (test_cli.TerminalTests.test_read_only_demo) ... ok
 test_three_main_menus_and_reports (test_cli.TerminalTests.test_three_main_menus_and_reports) ... ok
 test_raw_sql_concurrent_fourth_member_cannot_commit (test_concurrency.ConcurrencyTests.test_raw_sql_concurrent_fourth_member_cannot_commit) ... ok
+test_device_list_pretty_format (test_display.DisplayTests.test_device_list_pretty_format) ... ok
 test_empty_result_is_reported (test_display.DisplayTests.test_empty_result_is_reported) ... ok
 test_narrow_terminal_falls_back_to_records_without_losing_values (test_display.DisplayTests.test_narrow_terminal_falls_back_to_records_without_losing_values) ... ok
 test_piped_output_is_never_paginated (test_display.DisplayTests.test_piped_output_is_never_paginated) ... ok
@@ -63,7 +66,9 @@ test_reference_student_publications_by_major_year (test_reports.ReportTests.test
 test_reference_top_funded_projects (test_reports.ReportTests.test_reference_top_funded_projects) ... ok
 test_reference_top_student_years (test_reports.ReportTests.test_reference_top_student_years) ... ok
 test_sample_counts_match_independent_fixture (test_reports.ReportTests.test_sample_counts_match_independent_fixture) ... ok
+test_sample_data_has_equal_grant_amounts_and_historical_mentorship (test_reports.ReportTests.test_sample_data_has_equal_grant_amounts_and_historical_mentorship) ... ok
 test_schema_has_original_13_primary_keys_and_14_no_action_foreign_keys (test_reports.ReportTests.test_schema_has_original_13_primary_keys_and_14_no_action_foreign_keys) ... ok
+test_shared_project_mentorship_project_filter (test_reports.ReportTests.test_shared_project_mentorship_project_filter) ... ok
 test_truncate_cannot_bypass_mandatory_authorship (test_reports.ReportTests.test_truncate_cannot_bypass_mandatory_authorship) ... ok
 test_api_requests_do_not_accumulate_database_connections (test_web.WebServiceTests.test_api_requests_do_not_accumulate_database_connections) ... ok
 test_cross_origin_write_is_refused (test_web.WebServiceTests.test_cross_origin_write_is_refused) ... ok
@@ -71,9 +76,11 @@ test_database_unavailable_returns_503 (test_web.WebServiceTests.test_database_un
 test_health_endpoint (test_web.WebServiceTests.test_health_endpoint) ... ok
 test_invalid_create_rolls_back_entirely (test_web.WebServiceTests.test_invalid_create_rolls_back_entirely) ... ok
 test_member_create_update_delete_round_trip (test_web.WebServiceTests.test_member_create_update_delete_round_trip) ... ok
+test_member_detail_and_filtered_mentorship_endpoints (test_web.WebServiceTests.test_member_detail_and_filtered_mentorship_endpoints) ... ok
 test_meta_matches_reference_counts_and_reports (test_web.WebServiceTests.test_meta_matches_reference_counts_and_reports) ... ok
 test_nested_payload_types_are_validated (test_web.WebServiceTests.test_nested_payload_types_are_validated) ... ok
 test_non_object_json_is_a_structured_client_error (test_web.WebServiceTests.test_non_object_json_is_a_structured_client_error) ... ok
+test_nullable_date_can_be_cleared_to_null_via_patch (test_web.WebServiceTests.test_nullable_date_can_be_cleared_to_null_via_patch) ... ok
 test_protected_delete_is_refused (test_web.WebServiceTests.test_protected_delete_is_refused) ... ok
 test_report_all_variant (test_web.WebServiceTests.test_report_all_variant) ... ok
 test_reports_match_reference_row_for_row (test_web.WebServiceTests.test_reports_match_reference_row_for_row) ... ok
@@ -84,6 +91,6 @@ test_static_index_is_served_and_traversal_blocked (test_web.WebServiceTests.test
 test_write_requires_json_content_type (test_web.WebServiceTests.test_write_requires_json_content_type) ... ok
 
 ----------------------------------------------------------------------
-Ran 84 tests in 56.404s
+Ran 91 tests in 2.595s
 
 OK

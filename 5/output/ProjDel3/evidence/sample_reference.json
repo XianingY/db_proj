@@ -8,11 +8,11 @@
   "calculation": {
     "method": "Python 标准库独立解析 INSERT；集合 union/distinct、Decimal 精确加法和端点事件扫描。不以 SQL 报表输出生成预期。",
     "money_encoding": "所有金额及 weekly_hours 用两位小数字符串，避免 JSON 浮点精度损失。",
-    "mentor_scope": "所有保存的 mentee 的全时段 distinct publication；本样例的 14 位 mentee 均为学生。",
+    "mentor_scope": "所有保存的 mentee 的全时段 distinct publication；本样例包含 14 位学生被指导者与 1 位合作者被指导者（含 2 条已结束的历史指导）。",
     "major_year_scope": "每个 (major, publication_year) 内按 publication_id 去重；跨专业合著分别计入各专业。",
     "student_year_scope": "每年所有学生作者的 publication_id 集合并集，不累加各专业计数；降序按数量、年份取三年。",
     "ended_scope": "end_date 严格小于 2025-01-01；等于的 P004 排除，零资助 P009 保留。",
-    "current_usage_scope": "以执行时上海现在为锚点；九条 ended_at NULL 的使用持续开放。E001 按装置/成员去重后展开全部参与项目，不过滤项目状态。",
+    "current_usage_scope": "以执行时上海现在为锚点；九条 ended_at NULL 的使用持续开放。E001 按装置/成员去重后仅关联 status='active' 的进行中项目；无活跃项目的当前使用者保留 NULL 项目行。",
     "report_format": "reports.<模块键>.params 对应 research_lab/reports.py 参数顺序；rows 是独立计算的完整预期行。",
     "ordering": "中文专业按 Python Unicode 顺序保存；若数据库 collation 不同，专业/年份统计可按 (major, publication_year) 对照集合，其余按报表排序。"
   },
@@ -506,7 +506,7 @@
           "project_id": "P001",
           "title": "可信科研数据平台",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F001",
@@ -516,7 +516,7 @@
           "project_id": "P002",
           "title": "低功耗智能传感网络",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F001",
@@ -526,7 +526,7 @@
           "project_id": "P007",
           "title": "科研数据跨域协作",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F002",
@@ -656,7 +656,7 @@
           "project_id": "P003",
           "title": "边缘计算实验平台",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F003",
@@ -666,7 +666,7 @@
           "project_id": "P007",
           "title": "科研数据跨域协作",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F003",
@@ -676,7 +676,7 @@
           "project_id": "P009",
           "title": "开放硬件自主探索",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F004",

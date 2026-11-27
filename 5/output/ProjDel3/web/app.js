@@ -91,6 +91,11 @@ function toast(message, isError) {
 
 const pretty = (value) => {
   if (value === null || value === undefined) return 'NULL';
+  if (Array.isArray(value) && value.every((item) => item && typeof item === 'object' && 'device_number' in item && 'status' in item)) {
+    return value.length
+      ? value.map((d) => `${d.device_number} (${d.status}, ${d.purchase_date || ''})`).join(' · ')
+      : '无';
+  }
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 };
@@ -114,6 +119,9 @@ function dataTable(rows, withActions) {
         text: pretty(row[c]),
       })),
       withActions ? el('td', { class: 'rowact' },
+        row.__table === 'lab_member'
+          ? el('button', { text: '详情', onclick: () => openMemberDetail(row.member_id) })
+          : null,
         el('button', { text: '修改', onclick: () => openUpdate(row.__table, row) }),
         el('button', { text: '删除', onclick: () => openDelete(row.__table, row) })) : null));
     wrapper.replaceChildren(el('table', { class: 'data' },
@@ -143,7 +151,7 @@ async function idOptions(table) {
 
 async function attachDatalist(input, table) {
   const listId = 'dl-' + table + '-' + Math.random().toString(36).slice(2, 8);
-  const list = el('datalist', { id: listId });
+  const list = el('datalist', { id: listId, class: 'modal-datalist' });
   input.setAttribute('list', listId);
   document.body.append(list);
   try {
@@ -156,10 +164,30 @@ async function attachDatalist(input, table) {
 const ID_SOURCE = {
   project_id: 'research_project', member_id: 'lab_member', leader_id: 'faculty',
   equipment_id: 'equipment', publication_id: 'publication',
+  mentor_id: 'lab_member', mentee_id: 'lab_member', grant_id: 'research_grant',
 };
+
+function shanghaiNowString() {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date()).map((p) => [p.type, p.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+async function refreshMeta() {
+  META = (await api('/api/meta')).meta;
+  renderStats();
+  renderSchema();
+}
 
 /* ---------------------------------------------------------------- entity */
 async function openEntity(table) {
+  setActive(PANEL_OF[table], table);
   const panel = $('#panel' + PANEL_OF[table]);
   panel.replaceChildren(el('p', { class: 'empty', text: '载入中…' }));
   const spec = META.tables[table];
@@ -195,34 +223,61 @@ async function openEntity(table) {
 function fieldRow(table, key, value, forUpdate) {
   const spec = META.tables[table].fields[key];
   const kind = spec.kind;
+  const nullable = kind.endsWith('?');
+  const baseKind = nullable ? kind.slice(0, -1) : kind;
   let input;
+  let extraAction = null;
   const choices = {
     member_type: ['faculty', 'student', 'collaborator'],
   };
   if (table === 'research_project' && key === 'status') choices.status = ['active', 'completed', 'paused'];
   if (table === 'device' && key === 'status') choices.status = ['available', 'in_use', 'retired'];
   if (choices[key]) {
-    input = el('select', null,
+    input = el('select', { class: 'fcontrol' },
       ...(forUpdate ? [el('option', { value: '', text: '（留空保留）' })] : []),
       ...choices[key].map((c) => el('option', { value: c, text: c })));
     if (value) input.value = value;
-  } else if (kind === 'date' || kind === 'date?') {
-    input = el('input', { type: 'date', value: value || '' });
+  } else if (baseKind === 'date') {
+    input = el('input', { class: 'fcontrol', type: 'date', value: value || '' });
   } else {
-    input = el('input', { type: 'text', value: value === null || value === undefined ? '' : value });
+    input = el('input', { class: 'fcontrol', type: 'text', value: value === null || value === undefined ? '' : value });
     if (ID_SOURCE[key]) attachDatalist(input, ID_SOURCE[key]);
   }
   if (forUpdate) input.placeholder = value === null ? 'NULL（留空保留）' : pretty(value);
+
+  let controlNode = input;
+  let nowButton = null;
+  if (baseKind === 'datetime') {
+    nowButton = el('button', {
+      type: 'button', class: 'btn btn--ghost btn--sm', text: '当前北京时间',
+      onclick: () => { input.value = shanghaiNowString(); },
+    });
+    controlNode = el('div', { class: 'dt-row' }, input, nowButton);
+  }
+
+  let nullToggle = null;
+  if (forUpdate && nullable) {
+    const checkbox = el('input', { type: 'checkbox' });
+    checkbox.addEventListener('change', () => {
+      input.disabled = checkbox.checked;
+      if (nowButton) nowButton.disabled = checkbox.checked;
+    });
+    nullToggle = el('label', { class: 'null-toggle' }, checkbox, '清除为 NULL');
+  }
+
   return el('div', { class: 'frow' },
     el('div', null,
       el('span', { class: 'flabel', text: spec.label + ' · ' + key }),
       spec.hint ? el('span', { class: 'fhint', text: spec.hint }) : null,
-      kind.endsWith('?') ? el('span', { class: 'fhint', text: '可空：NULL 清除' }) : null),
-    input);
+      nullable ? el('span', { class: 'fhint', text: '可空：NULL 清除' }) : null),
+    controlNode,
+    nullToggle);
 }
 
 const readValue = (row) => {
-  const input = row.querySelector('input,select');
+  const clearBox = row.querySelector('.null-toggle input');
+  if (clearBox && clearBox.checked) return 'NULL';
+  const input = row.querySelector('.fcontrol');
   return input.value;
 };
 
@@ -255,6 +310,7 @@ function modalShell(title, sub, bodyNodes, actions) {
 }
 const closeModal = () => {
   $('#overlay').classList.remove('open');
+  for (const list of document.querySelectorAll('datalist.modal-datalist')) list.remove();
   if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
 };
 $('#overlay').addEventListener('click', (event) => {
@@ -297,6 +353,11 @@ function openCreate(table) {
     typeInput.addEventListener('change', rebuild);
     const participationHolder = el('div');
     const participationLists = [];
+    const syncPartButtons = () => {
+      for (const item of participationLists) {
+        item.removeBtn.style.display = participationLists.length > 1 ? '' : 'none';
+      }
+    };
     const addParticipation = () => {
       const rows = [];
       const grid = el('div', { class: 'fgrid' });
@@ -305,14 +366,29 @@ function openCreate(table) {
         rows.push([key, row]);
         grid.append(row);
       }
-      participationLists.push(rows);
-      participationHolder.append(grid);
+      const item = { rows };
+      const removeBtn = el('button', {
+        type: 'button', class: 'btn btn--ghost btn--sm', text: '移除',
+        onclick: () => {
+          const idx = participationLists.indexOf(item);
+          if (idx >= 0) participationLists.splice(idx, 1);
+          block.remove();
+          syncPartButtons();
+        },
+      });
+      item.removeBtn = removeBtn;
+      const block = el('div', { class: 'fsub' },
+        el('div', { class: 'fsub-head' }, el('span', { text: '参与项目条目' }), removeBtn),
+        grid);
+      participationLists.push(item);
+      participationHolder.append(block);
+      syncPartButtons();
     };
     addParticipation();
     modalShell('新增成员', 'lab_member + 子类 + project_participation（一个事务）',
       [groups[0], subtypeHolder,
        el('div', { class: 'fgroup' }, el('h4', { text: '项目参与（至少一个）' }), participationHolder,
-         el('button', { class: 'btn btn--ghost', style: 'margin-top:10px', text: '＋ 再加一个项目', onclick: addParticipation }))],
+         el('button', { type: 'button', class: 'btn btn--ghost', style: 'margin-top:10px', text: '＋ 再加一个项目', onclick: addParticipation }))],
       [el('button', { class: 'btn btn--ghost', text: '取消', onclick: closeModal }),
        el('button', { class: 'btn btn--accent', text: '提交新增', onclick: async () => {
          try {
@@ -320,10 +396,10 @@ function openCreate(table) {
            const target = { faculty: 'faculty', student: 'student', collaborator: 'external_collaborator' }[member.member_type];
            if (!target) throw new Error('成员类型只能为 faculty / student / collaborator');
            const subtype = Object.fromEntries((collect[target] || []).map(([k, r]) => [k, readValue(r)]));
-           const participations = participationLists.map((rows) => Object.fromEntries(rows.map(([k, r]) => [k, readValue(r)])));
+           const participations = participationLists.map((item) => Object.fromEntries(item.rows.map(([k, r]) => [k, readValue(r)])));
            await api('/api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ table, member, subtype, participations }) });
-           closeModal(); toast('新增已提交'); openEntity(table);
+           closeModal(); toast('新增已提交'); await refreshMeta(); openEntity(table);
          } catch (error) { toast(error.message, true); }
        } })]);
     rebuild();
@@ -332,40 +408,74 @@ function openCreate(table) {
 
   if (table === 'research_project' || table === 'equipment') {
     const mainRows = group(spec.label, table);
-    const childTable = table === 'research_project' ? null : 'device';
     const childHolder = el('div');
     const childLists = [];
+    const syncChildButtons = () => {
+      const minCount = table === 'equipment' ? 1 : 0;
+      for (const item of childLists) {
+        item.removeBtn.style.display = childLists.length > minCount ? '' : 'none';
+      }
+    };
+    const addChildRow = (childTableName, childKeys, rowLabel) => {
+      const rows = [];
+      const grid = el('div', { class: 'fgrid' });
+      for (const key of childKeys) {
+        const row = fieldRow(childTableName, key, null, false);
+        rows.push([key, row]);
+        grid.append(row);
+      }
+      const item = { rows };
+      const removeBtn = el('button', {
+        type: 'button', class: 'btn btn--ghost btn--sm', text: '移除',
+        onclick: () => {
+          const idx = childLists.indexOf(item);
+          if (idx >= 0) childLists.splice(idx, 1);
+          block.remove();
+          syncChildButtons();
+        },
+      });
+      item.removeBtn = removeBtn;
+      const block = el('div', { class: 'fsub' },
+        el('div', { class: 'fsub-head' }, el('span', { text: rowLabel }), removeBtn),
+        grid);
+      childLists.push(item);
+      childHolder.append(block);
+      syncChildButtons();
+    };
     if (table === 'equipment') {
-      const addChild = () => {
-        const rows = [];
-        const grid = el('div', { class: 'fgrid' });
-        for (const key of ['device_number', 'purchase_date', 'status']) {
-          const row = fieldRow('device', key, null, false);
-          rows.push([key, row]);
-          grid.append(row);
-        }
-        childLists.push(rows);
-        childHolder.append(grid);
-      };
-      addChild();
+      addChildRow('device', ['device_number', 'purchase_date', 'status'], '装置条目');
     }
     const extra = table === 'research_project'
-      ? el('p', { class: 'sec-note', style: 'margin:14px 0 0', text: '负责人会自动补一条参与记录（角色「负责人」，每周 0 工时），可在参与菜单修改。' })
-      : el('div', { class: 'fgroup' }, el('h4', { text: '第一台装置' }), childHolder);
+      ? el('div', { class: 'fgroup' },
+          el('h4', { text: '初始参与成员（除负责人外可选）' }),
+          el('p', { class: 'sec-note', style: 'margin:0 0 10px', text: '若未手动添加负责人，系统会自动补一条负责人参与记录（角色「负责人」，每周 0 工时）。' }),
+          childHolder,
+          el('button', {
+            type: 'button', class: 'btn btn--ghost', style: 'margin-top:10px', text: '＋ 添加参与成员',
+            onclick: () => addChildRow('project_participation', ['member_id', 'project_role', 'weekly_hours'], '参与成员'),
+          }))
+      : el('div', { class: 'fgroup' },
+          el('h4', { text: '具体装置（至少一台）' }),
+          childHolder,
+          el('button', {
+            type: 'button', class: 'btn btn--ghost', style: 'margin-top:10px', text: '＋ 再加一台装置',
+            onclick: () => addChildRow('device', ['device_number', 'purchase_date', 'status'], '装置条目'),
+          }));
     modalShell('新增' + spec.label, table + '（一个事务）', [groups[0], extra],
       [el('button', { class: 'btn btn--ghost', text: '取消', onclick: closeModal }),
        el('button', { class: 'btn btn--accent', text: '提交新增', onclick: async () => {
          try {
            const main = Object.fromEntries(mainRows.map(([k, r]) => [k, readValue(r)]));
            if (table === 'equipment') {
-             const devices = childLists.map((rows) => Object.fromEntries(rows.map(([k, r]) => [k, readValue(r)])));
+             const devices = childLists.map((item) => Object.fromEntries(item.rows.map(([k, r]) => [k, readValue(r)])));
              await api('/api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ table, equipment: main, devices }) });
            } else {
+             const participants = childLists.map((item) => Object.fromEntries(item.rows.map(([k, r]) => [k, readValue(r)])));
              await api('/api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ table, project: main, participants: [] }) });
+               body: JSON.stringify({ table, project: main, participants }) });
            }
-           closeModal(); toast('新增已提交'); openEntity(table);
+           closeModal(); toast('新增已提交'); await refreshMeta(); openEntity(table);
          } catch (error) { toast(error.message, true); }
        } })]);
     return;
@@ -383,7 +493,7 @@ function openCreate(table) {
            const authorIds = authors.value.split(',').map((s) => s.trim()).filter(Boolean);
            await api('/api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ table, publication, author_ids: authorIds }) });
-           closeModal(); toast('新增已提交'); openEntity(table);
+           closeModal(); toast('新增已提交'); await refreshMeta(); openEntity(table);
          } catch (error) { toast(error.message, true); }
        } })]);
     return;
@@ -397,7 +507,7 @@ function openCreate(table) {
          const data = Object.fromEntries(rows.map(([k, r]) => [k, readValue(r)]));
          await api('/api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ table, data }) });
-         closeModal(); toast('新增已提交'); openEntity(table);
+         closeModal(); toast('新增已提交'); await refreshMeta(); openEntity(table);
        } catch (error) { toast(error.message, true); }
      } })]);
 }
@@ -413,7 +523,7 @@ function openUpdate(table, record) {
     rows.push([key, row]);
     grid.append(row);
   }
-  const notes = ['留空保留原值；可空字段输入 NULL 清除。'];
+  const notes = ['留空保留原值；可空字段勾选「清除为 NULL」或输入 NULL 清除。'];
   if (table === 'lab_member') {
     notes.push('成员类型固定；学生专业等子类资料请在对应子类表中修改，与终端一致。');
   }
@@ -425,7 +535,7 @@ function openUpdate(table, record) {
          const changes = Object.fromEntries(rows.map(([k, r]) => [k, readValue(r)]));
          await api('/api/record', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ table, key: spec.keys.map((k) => record[k]), changes }) });
-         closeModal(); toast('修改已提交'); openEntity(table);
+         closeModal(); toast('修改已提交'); await refreshMeta(); openEntity(table);
        } catch (error) { toast(error.message, true); }
      } })]);
 }
@@ -446,7 +556,7 @@ function openDelete(table, record) {
     try {
       await api('/api/record', { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table, key: spec.keys.map((k) => record[k]) }) });
-      closeModal(); toast('删除已提交'); openEntity(table);
+      closeModal(); toast('删除已提交'); await refreshMeta(); openEntity(table);
     } catch (error) { toast(error.message, true); }
   });
   modalShell('删除' + spec.label, table,
@@ -455,6 +565,35 @@ function openDelete(table, record) {
        + '若会使其他对象失去必需关系（例如仍是项目负责人），整组回滚并给出原因。' }),
      el('div', { class: 'frow' }, el('div', null, el('span', { class: 'flabel', text: '确认' })), confirmInput)],
     [el('button', { class: 'btn btn--ghost', text: '取消', onclick: closeModal }), confirmButton]);
+}
+
+async function openMemberDetail(memberId) {
+  try {
+    const data = await api('/api/member_detail?member_id=' + encodeURIComponent(memberId));
+    const detail = data.detail;
+    const kv = (obj, table) => el('dl', { class: 'detail-kv' },
+      ...Object.entries(obj || {}).map(([k, v]) => el('div', null,
+        el('dt', { text: (META.tables[table]?.fields[k]?.label || labelOf(k)) + ' · ' + k }),
+        el('dd', { text: pretty(v) }))));
+    const partNode = detail.participations.length
+      ? dataTable(detail.participations, false)
+      : [el('p', { class: 'empty', text: '无参与项目。' })];
+    const mentorNode = detail.mentor
+      ? [kv(detail.mentor, 'mentorship')]
+      : [el('p', { class: 'empty', text: '无上级导师记录。' })];
+    const menteesNode = detail.mentees.length
+      ? dataTable(detail.mentees, false)
+      : [el('p', { class: 'empty', text: '未指导其他成员。' })];
+    modalShell('成员完整详情 · ' + detail.member.full_name,
+      detail.member.member_id + ' · ' + detail.subtype_table,
+      [el('div', { class: 'fgroup' }, el('h4', { text: '基本资料' }), kv(detail.member, 'lab_member')),
+       el('div', { class: 'fgroup' }, el('h4', { text: '子类资料 · ' + META.tables[detail.subtype_table].label }), kv(detail.subtype, detail.subtype_table)),
+       el('div', { class: 'fgroup' }, el('h4', { text: '参与项目（' + detail.participations.length + '）' }), ...partNode),
+       el('div', { class: 'fgroup' }, el('h4', { text: '指导关系' }), ...mentorNode, ...menteesNode)],
+      [el('button', { class: 'btn btn--accent', text: '关闭', onclick: closeModal })]);
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 /* --------------------------------------------------------------- reports */
@@ -482,6 +621,7 @@ async function reportParamControl(name, key) {
 }
 
 async function openReport(name) {
+  setActive(PANEL_OF[name], name);
   const definition = META.reports.find((r) => r.name === name);
   const panel = $('#panel' + PANEL_OF[name]);
   const paramsBar = el('div', { class: 'params' });
@@ -503,6 +643,15 @@ async function openReport(name) {
     }
     paramsBar.append(control);
   }
+  if (definition.filter_param) {
+    const control = await reportParamControl(name, definition.filter_param);
+    const select = control.querySelector('select');
+    if (select) {
+      select.prepend(el('option', { value: '', text: '全部项目（留空）' }));
+      select.value = '';
+    }
+    paramsBar.append(control);
+  }
   const run = async () => {
     holder.replaceChildren(el('p', { class: 'empty', text: '查询中…' }));
     try {
@@ -511,7 +660,10 @@ async function openReport(name) {
       for (const control of paramsBar.children) {
         const input = control.querySelector('select,input');
         if (!input || !input.dataset.key) continue;  // 无参数报表只有运行按钮
-        if (input.value === '') { listAll = true; continue; }
+        if (input.value === '') {
+          if (definition.all) listAll = true;
+          continue;
+        }
         parts.push(input.dataset.key + '=' + encodeURIComponent(input.value));
       }
       const query = listAll ? '&all=1' : (parts.length ? '&' + parts.join('&') : '');
@@ -533,25 +685,29 @@ for (const table of MENUS[1].entities.concat(MENUS[1].reports)) PANEL_OF[table] 
 for (const table of MENUS[2].entities.concat(MENUS[2].reports)) PANEL_OF[table] = 2;
 for (const table of MENUS[3].entities.concat(MENUS[3].reports)) PANEL_OF[table] = 3;
 
+function setActive(panelIdx, key) {
+  const list = $('#fn' + panelIdx);
+  if (!list) return;
+  for (const button of list.querySelectorAll('button')) {
+    button.classList.toggle('on', button.dataset.key === key);
+  }
+}
+
 function renderMenu(index) {
   const list = $('#fn' + index);
   const entityButtons = MENUS[index].entities.map((table) => el('button', {
+    'data-key': table,
     text: META.tables[table].label + ' · ' + table,
-    onclick: (event) => { mark(event); openEntity(table); },
+    onclick: () => openEntity(table),
   }));
   const reportButtons = MENUS[index].reports.map((name) => el('button', {
+    'data-key': name,
     text: META.reports.find((r) => r.name === name).title,
-    onclick: (event) => { mark(event); openReport(name); },
+    onclick: () => openReport(name),
   }));
   list.replaceChildren(
     el('h4', { text: '数据维护' }), ...entityButtons,
     el('h4', { text: '指定查询 / 报表' }), ...reportButtons);
-  entityButtons[0].classList.add('on');  // 首屏即标出当前项，避免"看不出选中了什么"
-}
-function mark(event) {
-  const list = event.currentTarget.parentElement;
-  for (const button of list.querySelectorAll('button')) button.classList.remove('on');
-  event.currentTarget.classList.add('on');
 }
 
 /* ---------------------------------------------------------------- schema */
@@ -566,20 +722,27 @@ const NODE_H = 46;
 
 function renderSchema() {
   const grid = $('#schema-grid');
+  grid.replaceChildren();
   const fkBySrc = {};
   for (const fk of META.foreign_keys) (fkBySrc[fk.src] = fkBySrc[fk.src] || []).push(fk);
   for (const [name, spec] of Object.entries(META.tables)) {
     const fks = fkBySrc[name] || [];
     const fkCols = new Set(fks.flatMap((fk) => fk.cols));
+    const uqCols = new Set(spec.uniques || (META.uniques && META.uniques[name]) || []);
     grid.append(el('div', { class: 'tcard' },
       el('span', { class: 'tcount', text: META.counts[name] + ' 行' }),
       el('div', { class: 'tname', text: name }),
       el('h3', { text: spec.label }),
-      el('ul', null, ...Object.entries(spec.fields).map(([key, field]) => el('li', null,
-        el('span', { class: 'fname', text: key }),
-        spec.keys.includes(key) ? el('span', { class: 'badge', text: 'PK' })
-          : fkCols.has(key) ? el('span', { class: 'badge', text: 'FK' })
-          : field.kind.endsWith('?') ? el('span', { class: 'badge null', text: 'NULL' }) : null)))));
+      el('ul', null, ...Object.entries(spec.fields).map(([key, field]) => {
+        const badges = [];
+        if (spec.keys.includes(key)) badges.push(el('span', { class: 'badge', text: 'PK' }));
+        if (fkCols.has(key)) badges.push(el('span', { class: 'badge', text: 'FK' }));
+        if (uqCols.has(key)) badges.push(el('span', { class: 'badge uq', text: 'UQ' }));
+        if (field.kind.endsWith('?')) badges.push(el('span', { class: 'badge null', text: 'NULL' }));
+        return el('li', null,
+          el('span', { class: 'fname', text: key }),
+          badges.length ? el('span', { class: 'badges' }, ...badges) : null);
+      }))));
   }
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -707,6 +870,7 @@ async function boot() {
   renderIntegrity();
   renderVerify();
   openEntity('lab_member');
+  openEntity('equipment');
   openReport('top_funded_projects');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (!reduce && 'IntersectionObserver' in window) {

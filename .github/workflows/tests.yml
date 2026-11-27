@@ -37,11 +37,92 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install runtime dependencies
+      - name: Verify DDL byte-identity with Deliverable 2
+        run: |
+          d2_hash=$(sha256sum 3/ProjDel2/SQL/create_tables.sql | awk '{print $1}')
+          d3_hash=$(sha256sum 5/output/ProjDel3/SQL/01_create_tables.sql | awk '{print $1}')
+          echo "D2: $d2_hash"
+          echo "D3: $d3_hash"
+          test "$d2_hash" = "$d3_hash"
+      - name: Install PostgreSQL client and runtime dependencies
         working-directory: 5/output/ProjDel3
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
       - name: Run the automated test suite
         working-directory: 5/output/ProjDel3
         run: python -m unittest discover -s tests -v
+      - name: Verify standalone SQL report queries against reference fixture
+        working-directory: 5/output/ProjDel3
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, uuid
+          from pathlib import Path
+          from psycopg import sql
+          from research_lab.db import connect, initialize
+          from research_lab.reports import run_report
+
+          ref = json.loads(Path('evidence/sample_reference.json').read_text(encoding='utf-8'))
+          schema = 'lab_ci_' + uuid.uuid4().hex[:12]
+          with connect(schema=schema) as conn:
+              try:
+                  initialize(conn, schema)
+                  program_rows = {}
+                  for name, expected in ref['reports'].items():
+                      rows = json.loads(json.dumps(
+                          run_report(conn, name, tuple(expected['params'])),
+                          ensure_ascii=False, default=str))
+                      assert rows == expected['rows'], name
+                      program_rows[name] = rows
+                  env = os.environ.copy()
+                  env['PGOPTIONS'] = f'-c search_path={schema}'
+                  proc = subprocess.run(
+                      ['psql', '-d', os.environ['LAB_DSN'], '-v', 'ON_ERROR_STOP=1',
+                       '-P', 'pager=off', '-A', '-F', '|', '-t',
+                       '-v', 'project_id=P005', '-v', 'grant_id=G001',
+                       '-v', 'equipment_id=E001', '-v', 'end_before=2025-01-01',
+                       '-f', 'SQL/04_report_queries.sql'],
+                      env=env, text=True, capture_output=True, check=True)
+                  lines = [line for line in proc.stdout.splitlines() if line.strip()]
+                  order = ['project_status', 'grant_members', 'shared_project_mentorship',
+                           'equipment_status', 'equipment_current_users', 'top_funded_projects',
+                           'mentor_publications', 'student_publications_by_major_year',
+                           'ended_projects', 'top_student_years']
+                  pos = 0
+                  for name in order:
+                      for row in program_rows[name]:
+                          want = '|'.join('' if v is None else str(v) for k, v in row.items() if k != 'devices')
+                          got = lines[pos]
+                          if 'devices' in row:
+                              got = got.rsplit('|', 1)[0]
+                          assert want == got, (name, want, got)
+                          pos += 1
+                  assert pos == len(lines), (pos, len(lines))
+                  print(f'Standalone SQL verified: {pos} rows matched program and sample_reference.json')
+              finally:
+                  conn.execute(sql.SQL('DROP SCHEMA IF EXISTS {} CASCADE').format(sql.Identifier(schema)))
+          PY
+      - name: Check docs and verification counts consistency
+        run: |
+          python - <<'PY'
+          import json, sys, unittest
+          from pathlib import Path
+
+          sys.path.insert(0, '5/output/ProjDel3')
+          suite = unittest.defaultTestLoader.discover('5/output/ProjDel3/tests')
+          actual_tests = suite.countTestCases()
+          v = json.loads(Path('5/output/ProjDel3/evidence/verification.json').read_text(encoding='utf-8'))
+          dv = json.loads(Path('5/output/ProjDel3/evidence/document_validation.json').read_text(encoding='utf-8'))
+          assert v['unittest_count'] == actual_tests, (v['unittest_count'], actual_tests)
+          assert dv['unittest_count_in_documents'] == actual_tests, (dv['unittest_count_in_documents'], actual_tests)
+          demo_script = Path('5/output/ProjDel3/docs/demo_script.md').read_text(encoding='utf-8')
+          assert f'{actual_tests} 个自动化测试' in demo_script
+          assert '80 个自动化测试' not in demo_script
+          root_readme = Path('README.md').read_text(encoding='utf-8')
+          assert f'{actual_tests} 项自动化测试' in root_readme
+          assert f'{dv["docx_tables_expected"]} 张' in root_readme
+          assert '18.6' not in Path('5/output/ProjDel3/README.md').read_text(encoding='utf-8')
+          print(f'Consistency check passed: {actual_tests} tests, {dv["pdf_pages"]} pages')
+          PY

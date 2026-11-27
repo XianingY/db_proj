@@ -8,7 +8,7 @@ from pathlib import Path
 import psycopg
 from psycopg import sql
 from research_lab.db import connect, initialize
-from research_lab.reports import REPORTS, run_report
+from research_lab.reports import REPORTS, run_report, run_report_filtered
 from research_lab.service import LabService
 import test_application
 
@@ -125,6 +125,28 @@ class ReportTests(unittest.TestCase):
             self.conn.execute('TRUNCATE authorship')
         self.conn.execute('ROLLBACK TO SAVEPOINT forbid_truncate')
         self.assertEqual(self.conn.execute('SELECT COUNT(*) AS n FROM authorship').fetchone()['n'],144)
+
+    def test_sample_data_has_equal_grant_amounts_and_historical_mentorship(self):
+        grants = self.conn.execute(
+            "SELECT grant_id, budget FROM research_grant WHERE project_id = 'P001' ORDER BY grant_id"
+        ).fetchall()
+        self.assertEqual([(g['grant_id'], g['budget']) for g in grants],
+                         [('G001', Decimal('250000.50')),
+                          ('G002', Decimal('150000.50')),
+                          ('G003', Decimal('150000.50'))])
+        ended = self.conn.execute(
+            "SELECT mentee_id, end_date FROM mentorship WHERE end_date IS NOT NULL ORDER BY mentee_id"
+        ).fetchall()
+        self.assertEqual([(r['mentee_id'], r['end_date']) for r in ended],
+                         [('S003', date(2024, 6, 30)), ('S008', date(2024, 6, 30))])
+
+    def test_shared_project_mentorship_project_filter(self):
+        filtered = run_report_filtered(self.conn, 'shared_project_mentorship', 'P001')
+        expected = [r for r in run_report(self.conn, 'shared_project_mentorship')
+                    if r['project_id'] == 'P001']
+        self.assertTrue(filtered)
+        self.assertEqual(filtered, expected)
+        self.assertEqual(run_report_filtered(self.conn, 'shared_project_mentorship', 'ABSENT'), [])
 
 
 def reference_test(name,expected):

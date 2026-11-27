@@ -19,10 +19,11 @@ sh start.sh            # 一键：准备环境 → 仅缺失时初始化 → 启
 | `sh start.sh demo` | 十项只读报表 |
 | `sh start.sh test` | 全部自动化测试 |
 | `sh start.sh check` | 环境与数据自检 |
+| `sh start.sh fresh <schema>` | 初始化一个全新的干净演示 schema（不覆盖默认实例） |
 | `sh start.sh stop` | 停止容器（保留数据卷） |
 | `sh start.sh help` | 完整用法与运行时选择 |
 
-覆盖默认行为：`LAB_RUNTIME=docker|native sh start.sh`、`WEB_PORT=8080 sh start.sh`；容器参数可复制 `.env.example` 为 `.env` 后修改。Docker 路径只要求 Docker + Compose v2，不需要本机装 Python 或 PostgreSQL；原生路径要求 Python 3.10+ 与 PostgreSQL 14+（本项目实测 18.6）。以下各节保留等价的手工命令，用于理解流程或排障。报告中提到的 `2/`、`4/` 为按要求不入库的个人作业，不在本仓库与提交包内，不影响运行。
+覆盖默认行为：`LAB_RUNTIME=docker|native sh start.sh`、`WEB_PORT=8080 sh start.sh`；容器参数可复制 `.env.example` 为 `.env` 后修改。Docker 路径只要求 Docker + Compose v2，不需要本机装 Python 或 PostgreSQL；原生路径要求 Python 3.10+ 与 PostgreSQL 14+（本项目实测 18.7）。以下各节保留等价的手工命令，用于理解流程或排障。报告中提到的 `2/`、`4/` 为按要求不入库的个人作业，不在本仓库与提交包内，不影响运行。
 
 ## 交付内容
 
@@ -50,7 +51,7 @@ sh start.sh            # 一键：准备环境 → 仅缺失时初始化 → 启
 
 **推荐直接使用 `sh start.sh`**（见「快速开始」），它会自动完成下面全部步骤并跳过已就绪的部分。以下为等价的手工步骤，用于理解流程或排障。
 
-使用 Python 3.10+、PostgreSQL 18、psycopg 3。本次实测为 Python 3.13.18 / PostgreSQL 18.6（macOS）；需要本机或可访问的 PostgreSQL 服务，不能用 SQLite 替代。
+使用 Python 3.10+、PostgreSQL 18、psycopg 3。本次实测为 Python 3.13.18 / PostgreSQL 18.7（macOS）；需要本机或可访问的 PostgreSQL 服务，不能用 SQLite 替代。
 
 **推荐：一键准备（幂等，可反复执行）**
 
@@ -139,7 +140,7 @@ python app.py --schema research_lab_demo2
 
 ## 3. 菜单与操作
 
-- 主菜单 1：成员/项目 CRUD、项目状态、按资助查询成员、同项目指导；附带参与/三类成员资料/指导管理。
+- 主菜单 1：成员/项目 CRUD、项目状态、按资助查询成员、同项目指导（支持按项目筛选）；附带参与/三类成员资料/指导管理及 `11` 成员完整详情。
 - 主菜单 2：设备/使用 CRUD、装置状态及设备汇总、当前使用人及进行中项目；附带具体装置管理。
 - 主菜单 3：原题五项统计，以及资助/成果/作者 CRUD。
 - 表管理：`1 查询 / 2 新增 / 3 修改 / 4 删除 / 0 返回`；查询空关键词显示全表，也可按编号、名称等匹配。
