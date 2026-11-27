@@ -1,7 +1,60 @@
 """Atomic business operations, using the exact Deliverable 2 schema."""
 from contextlib import contextmanager
 
+import psycopg
 from psycopg import sql
+
+
+CONSTRAINT_MESSAGES = {
+    'uq_student_number': '学号已存在，不能重复',
+    'fk_project_leader': '项目负责人必须是已存在的教师（faculty）',
+    'fk_participation_member': '参与成员不存在',
+    'fk_participation_project': '参与的项目不存在',
+    'fk_grant_project': '资助所属项目不存在',
+    'fk_device_equipment': '装置所属设备不存在',
+    'fk_usage_member': '使用设备的成员不存在',
+    'fk_usage_device': '指定的设备或装置编号不存在',
+    'fk_authorship_member': '作者成员不存在',
+    'fk_authorship_publication': '成果编号不存在',
+    'fk_mentorship_mentee': '被指导者成员不存在',
+    'fk_mentorship_mentor': '指导者成员不存在',
+    'ck_member_type': '成员类型只能为 faculty、student 或 collaborator',
+    'ck_project_status': '项目状态只能为 active、completed 或 paused',
+    'ck_project_dates': '项目结束日期不能早于开始日期',
+    'ck_completed_project': '项目状态为 completed 时必须填写结束日期',
+    'ck_project_duration': '项目计划天数必须大于 0',
+    'ck_participation_hours': '每周工时必须在 0 到 168 之间且不能为 NaN',
+    'ck_grant_budget': '资助预算不能小于 0 且不能为 NaN',
+    'ck_grant_duration': '资助预计天数必须大于 0',
+    'ck_device_status': '装置状态只能为 available、in_use 或 retired',
+    'ck_usage_dates': '设备使用结束时刻不能早于开始时刻',
+    'ck_publication_year': '发表年份必须在 1 到 9999 之间',
+    'ck_publication_month': '发表月份必须在 1 到 12 之间',
+    'ck_publication_day': '发表日期不是合法的公历日（含平闰年校验）',
+    'ck_mentorship_self': '成员不能自我指导',
+    'ck_mentorship_dates': '指导结束日期不能早于开始日期',
+}
+
+
+def format_db_error(error):
+    """Map PostgreSQL DDL constraint errors to clear Chinese messages while keeping constraint metadata."""
+    if not isinstance(error, psycopg.Error):
+        return str(error)
+    constraint = error.diag.constraint_name
+    sqlstate = error.sqlstate or ''
+    if constraint:
+        if constraint in CONSTRAINT_MESSAGES:
+            text = CONSTRAINT_MESSAGES[constraint]
+        elif constraint.startswith('pk_'):
+            text = '编号主键已存在，不能重复插入'
+        elif constraint.startswith('fk_'):
+            text = '关联记录不存在或仍被其他表引用'
+        elif constraint.startswith('ck_'):
+            text = '字段取值不满足约束条件（例如不能为空白或超出范围）'
+        else:
+            text = error.diag.message_primary or str(error)
+        return f'{text}（约束 {constraint}，SQLSTATE {sqlstate}）'
+    return error.diag.message_primary or str(error)
 
 
 # Field type is used by the CLI for strict parsing. '?' means nullable.
@@ -252,3 +305,42 @@ class LabService:
             'mentor': dict(mentor) if mentor else None,
             'mentees': [dict(row) for row in mentees],
         }
+
+    def reassign_project_leader(self, project_id, new_leader_id, weekly_hours=0):
+        """Atomically reassign a project's leader, adding faculty participation if absent."""
+        with self.atomic():
+            self._require_record('research_project', (project_id,))
+            if self.get_record('faculty', (new_leader_id,)) is None:
+                raise ValueError('新负责人必须是已存在的教师（faculty）')
+            if self.get_record('project_participation', (new_leader_id, project_id)) is None:
+                self._insert('project_participation', {
+                    'member_id': new_leader_id,
+                    'project_id': project_id,
+                    'project_role': '项目负责人',
+                    'weekly_hours': weekly_hours,
+                })
+            self.conn.execute(
+                'UPDATE research_project SET leader_id=%s WHERE project_id=%s',
+                (new_leader_id, project_id))
+
+    def update_member_with_subtype(self, member_id, member_changes, subtype_changes):
+        """Atomically update lab_member and its matching subclass record in one transaction."""
+        with self.atomic():
+            member = self._require_record('lab_member', (member_id,))
+            subtype_table = SUBCLASSES[member['member_type']]
+            if member_changes:
+                if set(member_changes) - set(TABLES['lab_member'][2]) or 'member_id' in member_changes:
+                    raise ValueError('编号主键不可修改，或修改包含未知字段')
+                if 'member_type' in member_changes:
+                    raise ValueError('成员类型固定；更新对应子类资料即可')
+                self.conn.execute(sql.SQL('UPDATE lab_member SET {} WHERE member_id=%s').format(
+                    sql.SQL(',').join(sql.SQL('{}=%s').format(sql.Identifier(c)) for c in member_changes)),
+                    tuple(member_changes.values()) + (member_id,))
+            if subtype_changes:
+                allowed = TABLES[subtype_table][2]
+                if set(subtype_changes) - set(allowed) or 'member_id' in subtype_changes:
+                    raise ValueError('子类资料修改包含未知字段或主键')
+                self.conn.execute(sql.SQL('UPDATE {} SET {} WHERE member_id=%s').format(
+                    sql.Identifier(subtype_table),
+                    sql.SQL(',').join(sql.SQL('{}=%s').format(sql.Identifier(c)) for c in subtype_changes)),
+                    tuple(subtype_changes.values()) + (member_id,))

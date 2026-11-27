@@ -97,8 +97,24 @@
 
   <section id="integrity" class="reveal">
     <div class="sec-head"><span class="sec-no">05</span><h2>完整性与并发</h2></div>
-    <p class="sec-note">这些规则由数据库触发器兜底，网页与终端都绕不过；写事务在 READ COMMITTED 下串行化。</p>
+    <p class="sec-note">这些规则由数据库触发器兜底，网页与终端都绕不过；写事务在 READ COMMITTED 下串行化，延迟检查采用事务级脏标记去重。</p>
     <div class="cards" id="integrity-cards"></div>
+    <div class="proof-grid">
+      <div class="proof-box">
+        <h4>实时 SQL 口径对照（只读）</h4>
+        <div id="semantics-box"><p class="empty">载入中…</p></div>
+      </div>
+      <div class="proof-box">
+        <h4>触发器拦截沙箱（事务回滚 · 零副作用）</h4>
+        <p class="sec-note" style="margin:0 0 12px">点击即向真实 PostgreSQL 发送违规语句并立即回滚，现场展示真实 SQLSTATE 与触发器拦截消息。</p>
+        <div class="toolbar" id="sandbox-buttons">
+          <button type="button" class="btn btn--ghost" data-case="delete_leader">试删负责人 F001</button>
+          <button type="button" class="btn btn--ghost" data-case="fourth_user">试插 E001/device01 第 4 人</button>
+          <button type="button" class="btn btn--ghost" data-case="truncate_authorship">试执行 TRUNCATE authorship</button>
+        </div>
+        <div id="sandbox-out"></div>
+      </div>
+    </div>
   </section>
 
   <section id="verify" class="reveal">

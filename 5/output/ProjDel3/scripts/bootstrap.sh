@@ -152,7 +152,10 @@ printf 'PostgreSQL 就绪：%s\n' "$($PSQL_CLI -tAc 'SHOW server_version' 2>/dev
 
 # -------------------------------------------------------------------- schema
 step "检查 schema $SCHEMA"
-EXISTS=$($PSQL_CLI -tAc "SELECT count(*) FROM pg_namespace WHERE nspname='$SCHEMA'" 2>/dev/null || echo 0)
+if ! printf '%s' "$SCHEMA" | grep -Eq '^[a-z][a-z0-9_]{0,62}$'; then
+    die "非法 schema 名称：$SCHEMA"
+fi
+EXISTS=$($PSQL_CLI -v schema="$SCHEMA" -tAc "SELECT count(*) FROM pg_namespace WHERE nspname = :'schema'" 2>/dev/null || echo 0)
 if [ "$EXISTS" = "1" ]; then
     printf 'schema 已存在，按设计不覆盖、不重新导入\n'
 elif [ "$CHECK_ONLY" = 1 ]; then

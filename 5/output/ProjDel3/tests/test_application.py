@@ -14,7 +14,7 @@ import psycopg
 from psycopg import sql
 
 from research_lab.db import connect, initialize
-from research_lab.service import LabService, TABLES
+from research_lab.service import LabService, TABLES, format_db_error
 
 
 class ApplicationTests(unittest.TestCase):
@@ -245,6 +245,28 @@ class ApplicationTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.service.member_detail('NO_SUCH_MEMBER')
+
+    def test_27_reassign_leader_subtype_update_and_chinese_errors(self):
+        self.service.create_project(dict(project_id='REASSIGN_P', title='换负责人测试',
+            start_date='2025-01-01', end_date=None, planned_duration_days=100,
+            status='active', leader_id='F001'), [])
+        self.service.reassign_project_leader('REASSIGN_P', 'F006', 8)
+        self.assertEqual(self.service.get_record('research_project', ('REASSIGN_P',))['leader_id'], 'F006')
+        self.assertIsNotNone(self.service.get_record('project_participation', ('F006', 'REASSIGN_P')))
+        self.assert_invalid(lambda: self.service.reassign_project_leader('REASSIGN_P', 'S001', 0), '教师')
+
+        self.service.update_member_with_subtype('S001', {'full_name': '张晨改'}, {'major': '人工智能'})
+        self.assertEqual(self.service.get_record('lab_member', ('S001',))['full_name'], '张晨改')
+        self.assertEqual(self.service.get_record('student', ('S001',))['major'], '人工智能')
+
+        try:
+            self.service.update_record('research_project', ('P005',), {'status': 'completed'})
+        except psycopg.Error as err:
+            msg = format_db_error(err)
+            self.assertIn('结束日期', msg)
+            self.assertIn('ck_completed_project', msg)
+        else:
+            self.fail('Expected ck_completed_project violation')
 
 
 if __name__ == '__main__':

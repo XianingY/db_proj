@@ -44,7 +44,7 @@ def main():
     # Songti has no glyph for U+22C8 / U+27D5 / U+2131; reportlab emits NUL for
     # those codepoints. Fail loudly instead of shipping a PDF with missing symbols.
     assert '\x00' not in text,'PDF text contains a missing glyph (NUL from the embedded font)'
-    assert len(doc.inline_shapes)==4
+    assert len(doc.inline_shapes)==5
     assert len(doc.tables)==20, '新增数据字典与索引两张表后应为 20 张表'
     # 防回归：文档里不允许再出现与真实运行不符的旧测试数字或旧分类规模。
     # 只禁止真正的旧口径：51 项时代的总数，以及已改名/改数的旧分类行。
@@ -84,7 +84,7 @@ def main():
             if descriptor and descriptor.get_object().get('/FontFile2'):
                 embedded.append(str(font['/BaseFont']))
     assert embedded,'No embedded TrueType font found'
-    for filename in ['menu_snapshot.png','report_snapshot.png']:
+    for filename in ['menu_snapshot.png','report_snapshot.png','web_snapshot.png']:
         with Image.open(ROOT/'evidence'/filename) as image:
             image.verify()
     bounds=None

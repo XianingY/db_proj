@@ -24,6 +24,7 @@ test_23_whitelist_and_id_immutability (test_application.ApplicationTests.test_23
 test_24_no_destructive_reinitialization (test_application.ApplicationTests.test_24_no_destructive_reinitialization) ... ok
 test_25_invalid_hours_and_nan_budget (test_application.ApplicationTests.test_25_invalid_hours_and_nan_budget) ... ok
 test_26_member_detail_returns_subtype_participations_and_mentorship (test_application.ApplicationTests.test_26_member_detail_returns_subtype_participations_and_mentorship) ... ok
+test_27_reassign_leader_subtype_update_and_chinese_errors (test_application.ApplicationTests.test_27_reassign_leader_subtype_update_and_chinese_errors) ... ok
 test_empty_parameter_lists_all_statuses (test_cli.TerminalTests.test_empty_parameter_lists_all_statuses) ... ok
 test_eof_and_invalid_menu_selection (test_cli.TerminalTests.test_eof_and_invalid_menu_selection) ... ok
 test_equipment_and_usage_crud_from_terminal (test_cli.TerminalTests.test_equipment_and_usage_crud_from_terminal) ... ok
@@ -32,6 +33,7 @@ test_member_crud_is_persisted_and_removed (test_cli.TerminalTests.test_member_cr
 test_member_detail_and_filtered_mentorship_from_terminal (test_cli.TerminalTests.test_member_detail_and_filtered_mentorship_from_terminal) ... ok
 test_project_crud_from_terminal (test_cli.TerminalTests.test_project_crud_from_terminal) ... ok
 test_read_only_demo (test_cli.TerminalTests.test_read_only_demo) ... ok
+test_reassign_project_leader_from_terminal (test_cli.TerminalTests.test_reassign_project_leader_from_terminal) ... ok
 test_three_main_menus_and_reports (test_cli.TerminalTests.test_three_main_menus_and_reports) ... ok
 test_raw_sql_concurrent_fourth_member_cannot_commit (test_concurrency.ConcurrencyTests.test_raw_sql_concurrent_fourth_member_cannot_commit) ... ok
 test_device_list_pretty_format (test_display.DisplayTests.test_device_list_pretty_format) ... ok
@@ -73,6 +75,7 @@ test_truncate_cannot_bypass_mandatory_authorship (test_reports.ReportTests.test_
 test_api_requests_do_not_accumulate_database_connections (test_web.WebServiceTests.test_api_requests_do_not_accumulate_database_connections) ... ok
 test_cross_origin_write_is_refused (test_web.WebServiceTests.test_cross_origin_write_is_refused) ... ok
 test_database_unavailable_returns_503 (test_web.WebServiceTests.test_database_unavailable_returns_503) ... ok
+test_explain_semantics_sandbox_and_atomic_workflows (test_web.WebServiceTests.test_explain_semantics_sandbox_and_atomic_workflows) ... ok
 test_health_endpoint (test_web.WebServiceTests.test_health_endpoint) ... ok
 test_invalid_create_rolls_back_entirely (test_web.WebServiceTests.test_invalid_create_rolls_back_entirely) ... ok
 test_member_create_update_delete_round_trip (test_web.WebServiceTests.test_member_create_update_delete_round_trip) ... ok
@@ -91,6 +94,6 @@ test_static_index_is_served_and_traversal_blocked (test_web.WebServiceTests.test
 test_write_requires_json_content_type (test_web.WebServiceTests.test_write_requires_json_content_type) ... ok
 
 ----------------------------------------------------------------------
-Ran 91 tests in 2.595s
+Ran 94 tests in 2.419s
 
 OK
