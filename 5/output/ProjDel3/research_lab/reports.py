@@ -62,6 +62,7 @@ REPORTS: dict[str, dict] = {
     "shared_project_mentorship": {
         "title": "同项目成员的指导关系（含历史记录）",
         "params": (),
+        "filter_param": "project_id",
         "sql": """
             SELECT ms.mentor_id,
                    mentor.full_name AS mentor_name,
@@ -80,6 +81,27 @@ REPORTS: dict[str, dict] = {
               ON mentee_pp.member_id = ms.mentee_id
              AND mentee_pp.project_id = mentor_pp.project_id
             JOIN research_project AS p ON p.project_id = mentor_pp.project_id
+            ORDER BY ms.mentor_id, ms.mentee_id, p.project_id
+        """,
+        "filter_sql": """
+            SELECT ms.mentor_id,
+                   mentor.full_name AS mentor_name,
+                   ms.mentee_id,
+                   mentee.full_name AS mentee_name,
+                   p.project_id,
+                   p.title,
+                   ms.start_date AS mentorship_start_date,
+                   ms.end_date AS mentorship_end_date
+            FROM mentorship AS ms
+            JOIN lab_member AS mentor ON mentor.member_id = ms.mentor_id
+            JOIN lab_member AS mentee ON mentee.member_id = ms.mentee_id
+            JOIN project_participation AS mentor_pp
+              ON mentor_pp.member_id = ms.mentor_id
+            JOIN project_participation AS mentee_pp
+              ON mentee_pp.member_id = ms.mentee_id
+             AND mentee_pp.project_id = mentor_pp.project_id
+            JOIN research_project AS p ON p.project_id = mentor_pp.project_id
+            WHERE p.project_id = %s
             ORDER BY ms.mentor_id, ms.mentee_id, p.project_id
         """,
     },
@@ -270,6 +292,14 @@ def run_report_all(conn: Any, name: str) -> list[dict[str, Any]]:
     if 'all_sql' not in report:
         raise ValueError(f'报表 {name} 没有列出全部的变体')
     return _fetch_rows(conn, report['all_sql'])
+
+
+def run_report_filtered(conn: Any, name: str, value: Any) -> list[dict[str, Any]]:
+    """Optional single-parameter filter variant (e.g. shared_project_mentorship by project_id)."""
+    report = REPORTS[name]
+    if 'filter_sql' not in report:
+        raise ValueError(f'报表 {name} 不支持条件筛选')
+    return _fetch_rows(conn, report['filter_sql'], (value,))
 
 
 def run_report(

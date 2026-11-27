@@ -1,10 +1,10 @@
 {
-  "verified_at": "2026-11-25T14:38:08.720643+08:00",
+  "verified_at": "2026-11-27T22:07:58.829107+08:00",
   "python": "3.13.18",
   "postgresql": "18.7 (Homebrew)",
   "schema_isolation": "fresh random schema",
   "status": "passed",
-  "unittest_count": 84,
+  "unittest_count": 91,
   "unittest_exit_code": 0,
   "standalone_sql_exit_code": 0,
   "terminal_demo_exit_code": 0,
@@ -538,7 +538,7 @@
           "project_id": "P001",
           "title": "可信科研数据平台",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F001",
@@ -548,7 +548,7 @@
           "project_id": "P002",
           "title": "低功耗智能传感网络",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F001",
@@ -558,7 +558,7 @@
           "project_id": "P007",
           "title": "科研数据跨域协作",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F002",
@@ -688,7 +688,7 @@
           "project_id": "P003",
           "title": "边缘计算实验平台",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F003",
@@ -698,7 +698,7 @@
           "project_id": "P007",
           "title": "科研数据跨域协作",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F003",
@@ -708,7 +708,7 @@
           "project_id": "P009",
           "title": "开放硬件自主探索",
           "mentorship_start_date": "2020-09-01",
-          "mentorship_end_date": null
+          "mentorship_end_date": "2024-06-30"
         },
         {
           "mentor_id": "F004",

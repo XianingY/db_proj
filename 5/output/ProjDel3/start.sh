@@ -25,6 +25,7 @@ Research Lab Manager - 统一启动入口
   sh start.sh demo     运行十项只读报表
   sh start.sh test     运行全部自动化测试
   sh start.sh check    环境与数据自检
+  sh start.sh fresh <schema>  初始化一个新的干净演示 schema（不覆盖默认库）
   sh start.sh stop     停止 Docker 服务（保留数据卷）
   sh start.sh help     显示本说明
 
@@ -145,6 +146,19 @@ case "$ACTION" in
             sh scripts/bootstrap.sh --check
             "$VENV_PY" docs/check_demo_data.py
         fi ;;
+    fresh)
+        TARGET_SCHEMA=${1:-}
+        [ -n "$TARGET_SCHEMA" ] || die '请指定新 schema 名称，例如：sh start.sh fresh research_lab_demo2'
+        printf '%s' "$TARGET_SCHEMA" | grep -Eq '^[a-z][a-z0-9_]{0,62}$' || \
+            die 'schema 必须由小写英文、数字和下划线组成，以字母开头（不超过 63 字符）'
+        if docker_ok; then
+            ensure_docker
+            docker compose exec -T app python app.py --schema "$TARGET_SCHEMA" --init
+        else
+            ensure_native
+            "$VENV_PY" app.py --schema "$TARGET_SCHEMA" --init
+        fi
+        printf '干净实例已就绪：LAB_SCHEMA=%s sh start.sh （或 sh start.sh menu）\n' "$TARGET_SCHEMA" ;;
     *)
         die "未知子命令：$ACTION（用 sh start.sh help 查看用法）" ;;
 esac

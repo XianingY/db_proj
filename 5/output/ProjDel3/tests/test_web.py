@@ -239,6 +239,47 @@ class WebServiceTests(unittest.TestCase):
         self.assertEqual(status, 400, payload)
         self.assertIn('负责人', payload['error'])
 
+    def test_nullable_date_can_be_cleared_to_null_via_patch(self):
+        body = {'table': 'research_project',
+                'project': {'project_id': 'WEB_PRJ', 'title': '可空日期清除测试',
+                            'start_date': '2025-01-01', 'end_date': '2025-06-01',
+                            'planned_duration_days': '180', 'status': 'completed',
+                            'leader_id': 'F001'},
+                'participants': []}
+        status, payload = call(self.port, '/api/rows', 'POST', body)
+        self.assertEqual(status, 200, payload)
+        try:
+            status, payload = call(self.port, '/api/record', 'PATCH',
+                                   {'table': 'research_project', 'key': ['WEB_PRJ'],
+                                    'changes': {'status': 'active', 'end_date': 'NULL'}})
+            self.assertEqual(status, 200, payload)
+            status, payload = call(self.port, '/api/record?table=research_project&project_id=WEB_PRJ')
+            self.assertEqual(status, 200, payload)
+            self.assertEqual(payload['record']['status'], 'active')
+            self.assertIsNone(payload['record']['end_date'])
+        finally:
+            call(self.port, '/api/record', 'DELETE',
+                 {'table': 'research_project', 'key': ['WEB_PRJ']})
+
+    def test_member_detail_and_filtered_mentorship_endpoints(self):
+        status, payload = call(self.port, '/api/member_detail?member_id=S003')
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(payload['detail']['member']['member_id'], 'S003')
+        self.assertEqual(payload['detail']['mentor']['end_date'], '2024-06-30')
+        status, _ = call(self.port, '/api/member_detail?member_id=ABSENT')
+        self.assertEqual(status, 400)
+
+        status, payload = call(self.port, '/api/report?name=shared_project_mentorship&project_id=P001')
+        self.assertEqual(status, 200, payload)
+        self.assertTrue(payload['rows'])
+        self.assertTrue(all(r['project_id'] == 'P001' for r in payload['rows']))
+
+        status, meta_payload = call(self.port, '/api/meta')
+        self.assertEqual(status, 200, meta_payload)
+        meta = meta_payload['meta']
+        self.assertEqual(meta['uniques'].get('student'), ['student_number'])
+        self.assertTrue(any('\n' in r['sql'] for r in meta['reports']))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -226,6 +226,26 @@ class ApplicationTests(unittest.TestCase):
         row=self.service.list_rows('research_grant')[0]
         self.assert_invalid(lambda:self.service.update_record('research_grant',(row['grant_id'],),dict(budget='NaN')))
 
+    def test_26_member_detail_returns_subtype_participations_and_mentorship(self):
+        faculty = self.service.member_detail('F001')
+        self.assertEqual(faculty['subtype_table'], 'faculty')
+        self.assertEqual(faculty['subtype']['department'], '计算机科学系')
+        self.assertIsNone(faculty['mentor'])
+        self.assertEqual(len(faculty['mentees']), 3)
+        self.assertGreaterEqual(len(faculty['participations']), 3)
+
+        student = self.service.member_detail('S003')
+        self.assertEqual(student['subtype_table'], 'student')
+        self.assertEqual(student['mentor']['mentor_id'], 'F001')
+        self.assertEqual(str(student['mentor']['end_date']), '2024-06-30')
+
+        collab = self.service.member_detail('C001')
+        self.assertEqual(collab['subtype_table'], 'external_collaborator')
+        self.assertEqual(collab['mentor']['mentor_id'], 'S007')
+
+        with self.assertRaises(ValueError):
+            self.service.member_detail('NO_SUCH_MEMBER')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

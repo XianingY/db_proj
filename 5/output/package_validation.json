@@ -2,8 +2,8 @@
   "archive": "ProjDel3.zip",
   "status": "passed",
   "file_count": 59,
-  "bytes": 2974334,
-  "sha256": "20b88abde4d8168a4e55c6914883557c33c778af570f7b22d007c79938ce7edf",
+  "bytes": 2998860,
+  "sha256": "439855b81f68db595a80a89d2f769e82d61e8b5d38ed602b834ff582251917d2",
   "zip_crc_checked": true,
   "manifest_hashes_verified": true,
   "no_runtime_cache_or_venv": true

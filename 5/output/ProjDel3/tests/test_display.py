@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 
 from research_lab.cli import (HARD_TOKEN_LIMIT, LABELS, MIN_COLUMN_WIDTH,
-                              display_rows, fit_sizes, minimum_width, width, wrapped)
+                              display_rows, fit_sizes, minimum_width, pretty, width, wrapped)
 from research_lab.service import TABLES
 
 
@@ -116,6 +116,13 @@ class DisplayTests(unittest.TestCase):
         out = self.capture(rows)
         self.assertNotIn('回车继续', out)
         self.assertIn('共 200 条记录。', out)
+
+    def test_device_list_pretty_format(self):
+        formatted = pretty([{'device_number': 'device01', 'status': 'in_use', 'purchase_date': '2023-01-10'}])
+        self.assertIn('device01', formatted)
+        self.assertIn('in_use', formatted)
+        self.assertNotIn('{', formatted)
+        self.assertEqual(pretty([]), '无')
 
 
 if __name__ == '__main__':

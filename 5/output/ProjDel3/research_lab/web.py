@@ -12,6 +12,7 @@ existing virtualenv is sufficient.
 """
 import json
 import os
+import textwrap
 from datetime import date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,7 +24,7 @@ from psycopg import sql
 
 from .cli import parse_value
 from .db import DEFAULT_SCHEMA, connect
-from .reports import REPORTS, run_report, run_report_all
+from .reports import REPORTS, run_report, run_report_all, run_report_filtered
 from .service import LabService, TABLES, table_counts
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / 'web'
@@ -104,6 +105,25 @@ def foreign_keys(conn):
     return [dict(row) for row in rows]
 
 
+def unique_columns(conn):
+    rows = conn.execute("""
+        SELECT cls.relname AS table_name,
+               array_agg(a.attname ORDER BY x.n) AS cols
+        FROM pg_constraint c
+        JOIN pg_class cls ON cls.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = cls.relnamespace
+        CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY AS x(attnum, n)
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = x.attnum
+        WHERE n.nspname = current_schema() AND c.contype = 'u'
+        GROUP BY cls.relname, c.conname
+        ORDER BY cls.relname, c.conname
+    """).fetchall()
+    result = {}
+    for row in rows:
+        result.setdefault(row['table_name'], []).extend(row['cols'])
+    return result
+
+
 _VERIFICATION_CACHE = {'key': None, 'value': {}}
 
 
@@ -132,17 +152,24 @@ def verification_payload():
 
 def meta_payload(conn):
     verification = verification_payload()
-    tables = {name: field_specs(name) for name in TABLES}
+    uniques = unique_columns(conn)
+    tables = {}
+    for name in TABLES:
+        spec = field_specs(name)
+        spec['uniques'] = uniques.get(name, [])
+        tables[name] = spec
     counts = table_counts(conn)
     return {
         'schema': conn.execute('SELECT current_schema() AS s').fetchone()['s'],
         'server_version': conn.execute('SHOW server_version').fetchone()['server_version'],
         'tables': tables,
+        'uniques': uniques,
         'counts': counts,
         'total_tuples': sum(counts.values()),
         'foreign_keys': foreign_keys(conn),
         'reports': [{'name': name, 'title': r['title'], 'params': list(r['params']),
-                     'all': 'all_sql' in r, 'sql': ' '.join(r['sql'].split())}
+                     'all': 'all_sql' in r, 'filter_param': r.get('filter_param'),
+                     'sql': textwrap.dedent(r['sql']).strip()}
                     for name, r in REPORTS.items()],
         'verification': verification,
     }
@@ -276,10 +303,20 @@ def make_handler(dsn, schema, quiet=False):
                     if record is None:
                         raise ValueError('未找到记录')
                     return self._send(200, {'ok': True, 'record': dict(record)})
+                if path == '/api/member_detail':
+                    member_id = (query.get('member_id') or '').strip()
+                    if not member_id:
+                        raise ValueError('缺少参数 member_id')
+                    detail = LabService(conn).member_detail(member_id)
+                    return self._send(200, {'ok': True, 'detail': detail})
                 if path == '/api/report':
                     name = query.get('name')
                     if name not in REPORTS:
                         raise ValueError('未知的报表')
+                    filter_param = REPORTS[name].get('filter_param')
+                    if filter_param and (query.get(filter_param) or '').strip():
+                        rows = run_report_filtered(conn, name, query[filter_param].strip())
+                        return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
                     if ((query.get('all') or '').lower() in ('1', 'true', 'yes')
                             and 'all_sql' in REPORTS[name]):
                         rows = run_report_all(conn, name)

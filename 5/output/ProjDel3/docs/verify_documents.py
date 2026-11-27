@@ -53,6 +53,18 @@ def main():
                      '18 项报表与结构测试']
     for marker in stale_markers:
         assert marker not in markdown and marker not in doc_text, marker
+
+    demo_script = (ROOT / 'docs' / 'demo_script.md').read_text(encoding='utf-8')
+    assert f"{v['unittest_count']} 个自动化测试" in demo_script, 'demo_script.md 测试数未同步'
+    assert '80 个自动化测试' not in demo_script, 'demo_script.md 含过期测试数'
+    pkg_readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+    assert '18.6' not in pkg_readme, 'ProjDel3/README.md 含过期 PostgreSQL 小版本号 18.6'
+    repo_readme_path = ROOT.parent.parent.parent / 'README.md'
+    if repo_readme_path.exists():
+        repo_readme = repo_readme_path.read_text(encoding='utf-8')
+        assert f"{v['unittest_count']} 项自动化测试" in repo_readme, '根目录 README.md 测试数未同步'
+        assert '20 张' in repo_readme, '根目录 README.md DOCX 表格数未同步'
+        assert '18.6' not in repo_readme, '根目录 README.md 含过期 PostgreSQL 小版本号 18.6'
     category_counts = test_category_counts()
     assert sum(category_counts.values()) == v['unittest_count']
     for module, label, _coverage in TEST_CATEGORY_LABELS:

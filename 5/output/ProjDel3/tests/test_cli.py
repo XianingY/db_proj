@@ -88,6 +88,14 @@ class TerminalTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr+result.stdout)
         self.assertIn('无效选项',result.stdout)
 
+    def test_member_detail_and_filtered_mentorship_from_terminal(self):
+        result = self.terminal(['1', '11', 'S003', '5', 'P001', '5', '', '0', '0'])
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn('2024-06-30', result.stdout)
+        self.assertIn('P001', result.stdout)
+        self.assertIn('共 40 条记录', result.stdout)
+        self.assertNotIn('操作失败', result.stdout)
+
 
 if __name__ == '__main__':
     unittest.main()

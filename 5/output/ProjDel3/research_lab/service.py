@@ -121,7 +121,7 @@ class LabService:
             # Verified with real transactions: a violating row written after
             # IMMEDIATE is rejected at COMMIT in deferred mode, but at INSERT in
             # immediate mode. atomic() has no writes between IMMEDIATE and here,
-            # so the 80 tests cannot observe it (reverse-verified); keep this
+            # so the automated tests cannot observe it (reverse-verified); keep this
             # defensive second check rather than changing the commit timing.
             self.conn.execute('SET CONSTRAINTS ALL DEFERRED')
 
@@ -216,3 +216,39 @@ class LabService:
                 self.conn.execute('DELETE FROM authorship WHERE publication_id=%s',(identifier,))
             self.conn.execute(sql.SQL('DELETE FROM {} WHERE {}').format(
                 sql.Identifier(table),self._key_clause(table,key)),tuple(key))
+
+    def member_detail(self, member_id):
+        """Return full member profile: superclass, matching subclass, participations, and mentorships."""
+        member = self.get_record('lab_member', (member_id,))
+        if member is None:
+            raise ValueError('未找到此成员')
+        subtype_table = SUBCLASSES[member['member_type']]
+        subtype = self.get_record(subtype_table, (member_id,))
+        participations = self.conn.execute("""
+            SELECT pp.project_id, p.title, p.status, pp.project_role, pp.weekly_hours
+            FROM project_participation AS pp
+            JOIN research_project AS p ON p.project_id = pp.project_id
+            WHERE pp.member_id = %s
+            ORDER BY pp.project_id
+        """, (member_id,)).fetchall()
+        mentor = self.conn.execute("""
+            SELECT ms.mentor_id, m.full_name AS mentor_name, ms.start_date, ms.end_date
+            FROM mentorship AS ms
+            JOIN lab_member AS m ON m.member_id = ms.mentor_id
+            WHERE ms.mentee_id = %s
+        """, (member_id,)).fetchone()
+        mentees = self.conn.execute("""
+            SELECT ms.mentee_id, m.full_name AS mentee_name, ms.start_date, ms.end_date
+            FROM mentorship AS ms
+            JOIN lab_member AS m ON m.member_id = ms.mentee_id
+            WHERE ms.mentor_id = %s
+            ORDER BY ms.mentee_id
+        """, (member_id,)).fetchall()
+        return {
+            'member': dict(member),
+            'subtype_table': subtype_table,
+            'subtype': dict(subtype) if subtype else {},
+            'participations': [dict(row) for row in participations],
+            'mentor': dict(mentor) if mentor else None,
+            'mentees': [dict(row) for row in mentees],
+        }

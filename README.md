@@ -2,7 +2,7 @@
 
 本仓库是数据库课程大作业的完整成果：D1 概念设计、D2 逻辑设计、D3 实现与验证，以及课程课件。**本文档面向 clone 仓库的同组组员**；给评分者的交付说明见 `5/output/README.md` 与 `5/output/ProjDel3/README.md`。
 
-当前状态：仓库已关联 `origin`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、84 项自动化测试、26 页中文报告，提交包 59 个文件。
+当前状态：仓库已关联 `origin`（`git@github.com:XianingY/db_proj.git`）；13 张表 / 385 条样例、91 项自动化测试、26 页中文报告，提交包 59 个文件。
 
 ## 1. 30 秒跑起来
 
@@ -25,6 +25,7 @@ sh start.sh
 | `sh start.sh demo` | 十项只读报表 |
 | `sh start.sh test` | 全部自动化测试 |
 | `sh start.sh check` | 环境与数据自检（含演示数据一致性） |
+| `sh start.sh fresh <schema>` | 初始化一个全新的干净演示 schema（不覆盖默认库） |
 | `sh start.sh stop` | 停止容器（数据卷保留） |
 | `sh start.sh help` | 完整用法与运行时选择 |
 
@@ -33,7 +34,7 @@ sh start.sh
 | 路径 | 需要 | 不需要 |
 | --- | --- | --- |
 | Docker（推荐，自动选择） | Docker Desktop + Compose v2 | 本机 Python / PostgreSQL |
-| 本机环境（自动回退） | Python 3.10+、PostgreSQL 14+（实测 18.6），uv 可选 | Docker |
+| 本机环境（自动回退） | Python 3.10+、PostgreSQL 14+（实测 18.7），uv 可选 | Docker |
 | 手工排障 | `scripts/bootstrap.sh` 会自愈重建失效的 `.venv` | 手动逐个 pip 安装 |
 
 ```sh
@@ -74,7 +75,7 @@ WEB_PORT=8080 sh start.sh         # 换端口
 ## 5. 协作约定（改动前必读）
 
 1. **报告三格式是生成产物**：`docs/build_report.py` 的 `report_blocks()` 统一生成 `.md` / `.docx` / `.pdf`。不要直接手改报告文件，改内容要改生成脚本再重生成；`5/output/README.md` 的页数描述也要同步。
-2. **文档校验有硬编码期望值**：`docs/verify_documents.py` 检查 DOCX 表格数（当前 18 张）、PDF 嵌入中文字体、文字边界与缺字 NUL。新增表格或章节时要同步更新期望值，否则校验会失败。
+2. **文档校验有硬编码期望值**：`docs/verify_documents.py` 检查 DOCX 表格数（当前 20 张）、PDF 嵌入中文字体、文字边界与缺字 NUL。新增表格或章节时要同步更新期望值，否则校验会失败。
 3. **改源码 / SQL / 文档后跑门禁并重新打包**（在 `5/output/ProjDel3/` 目录执行）：
    ```sh
    sh start.sh check

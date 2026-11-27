@@ -222,7 +222,7 @@ def report_blocks():
         ['research_grant','grant_id → agency, budget, 日期, project_id；project_id 可重复（一项目多资助）','满足：无非键决定因素'],
         ['equipment','equipment_id → name, type, manual_location；单一候选键','满足'],
         ['device','(equipment_id, device_number) → purchase_date, status；device_number 只是设备内局部键','满足：局部键不单独决定整行'],
-        ['equipment_usage','usage_id → member/device/区间/purpose；(成员,装置,开始时刻) 的唯一性由触发器保证，未声明为候选键','满足：声明的键决定全部属性'],
+        ['equipment_usage','usage_id → member/device/区间/purpose；非空区间的 (成员,装置,开始时刻) 唯一性由触发器保证，未声明为候选键','满足：声明的键决定全部属性'],
         ['publication','publication_id → title, 年/月/日, venue, doi；doi 可空且未声明唯一','满足：无非键决定因素'],
         ['authorship','(member_id, publication_id) 为全键，无非主属性','平凡满足'],
         ['mentorship','mentee_id → mentor_id, start_date, end_date；依赖「每名被指导者至多保留一段指导记录」假设','满足；该假设改变时需重新评估键与依赖']])
@@ -248,7 +248,7 @@ def report_blocks():
     para('不要把“机器上有 python3”当成“能建虚拟环境”。本次复现就遇到 Homebrew Python 存在、但 pip 依赖的 libexpat 缺少符号而无法执行 python3 -m venv 的情况；bootstrap.sh 因此先在临时目录实测每个候选解释器的 venv 能力，全部失败时自动退回 uv venv --python 3.13，再安装 requirements.txt 与 requirements-docs.txt。PostgreSQL 未在监听时脚本会尝试用 Homebrew 启动服务并等待就绪；仍失败则明确报错而不是静默继续。')
     para('初始化在一个事务内依次创建不存在的 schema、执行原建表 SQL、执行新增完整性 SQL、导入样例、调用完整性检查并立即检查延迟约束后提交。任一步失败则整个创建回滚。初始化不支持覆盖；已有同名 schema 会拒绝，想创建新实例只能显式选新 schema 名称。运行实例只需要查询与写权限；初次初始化与测试还需要创建 schema/函数/触发器的权限。')
     sub('3.2 样例分布与功能覆盖')
-    para('样例由每表显式 INSERT 构成，总计 '+str(v['total_sample_tuples'])+' 条元组。24 名成员包含 6 名教师、14 名学生、4 名合作者；10 个项目包含完成、活跃和暂停状态，P009/P010 没有资助。15 项资助包含一项目多资助及相同金额资助，考查求和不应按金额去重。6 种设备各有两台装置，多个设备共用 device01/device02 局部编号，体现复合键。')
+    para('样例由每表显式 INSERT 构成，总计 '+str(v['total_sample_tuples'])+' 条元组。24 名成员包含 6 名教师、14 名学生、4 名合作者；10 个项目包含完成、活跃和暂停状态，P009/P010 没有资助。15 项资助包含一项目多资助及相同金额资助（P001 的 G002 与 G003 同为 150000.50 USD），考查求和不应按金额去重。15 条指导关系含 2 条已结束的历史指导（S003、S008 于 2024-06-30 结束），验证历史指导记录的保留。6 种设备各有两台装置，多个设备共用 device01/device02 局部编号，体现复合键。')
     para('30 项成果覆盖 2021–2026 年和四个专业，含同专业学生合著、跨专业合著、非学生成果，以及两位导师成果并列。36 条使用包含 27 条已结束历史和 9 条未结束记录；开放记录以导入事务的上海当前时刻减去若干小时生成，重新导入时仍是过去的实际使用，历史日期不依赖未来时间。退役装置的历史先在 available 状态下录入，然后退役，符合不向退役装置新增记录的规则。')
     para('所有人员、机构、项目及成果均为虚构教学数据。手册字段保存示例位置，不表示附带真实仪器 PDF。独立参考答案 evidence/sample_reference.json 给出表数量、完整查询行和共同作者去重见证；运行结果 evidence/verification.json 与其逐行比较，不用被测查询计算自身的预期。')
 
@@ -260,8 +260,9 @@ def report_blocks():
         ['1 → 1/2','成员/项目查询、新增、修改、删除','LabService + 原表；实体及必需关系一事务'],
         ['1 → 3','项目状态','project_status(project_id)'],
         ['1 → 4','给定资助所属项目的工作成员','grant_members(grant_id)'],
-        ['1 → 5','共同项目上的指导关系','shared_project_mentorship()'],
+        ['1 → 5','共同项目上的指导关系','shared_project_mentorship()（支持按项目编号可选筛选）'],
         ['1 → 6–10','参与、教师/学生/合作者资料、指导维护','对应关系与子类 CRUD'],
+        ['1 → 11','成员完整详情（超类、子类、参与与指导）','LabService.member_detail(member_id)'],
         ['2 → 1/2','设备/使用记录查询、新增、修改、删除','LabService + 使用验证/状态同步'],
         ['2 → 3','设备装置状态及分类计数','equipment_status(equipment_id)'],
         ['2 → 4','当前使用者及其进行中项目','equipment_current_users(equipment_id)'],
@@ -274,16 +275,16 @@ def report_blocks():
     sub('4.3 参数、安全和错误反馈')
     para('用户值通过 psycopg 占位符绑定，表/字段名由白名单和 sql.Identifier 构造，不拼接输入。输入 SQL 片段只作为普通搜索文本或编号，不能扩展查询。数据库错误展示主要原因并回滚，不让终端因单次失败中止；EOF/Ctrl+C 安全退出，未提交操作不保存。DSN 可外部配置，不把密码写进代码或提交材料。')
     sub('4.4 课堂演示网页（与终端同源）')
-    para('终端表格在投影上读起来吃力，因此本阶段另加一个本机演示网页：python app.py --web 用标准库在 127.0.0.1 起 JSON API 与静态单页，不引入 Web 框架。网页不复制业务规则——写操作调用与终端相同的 LabService，十项报表调用相同的 run_report，因此回滚、依赖保护和统计口径天然一致；删除在网页上同样要求输入 DELETE。前端为原生 JS 三件套，无框架、无 CDN，断网可用；模式卡片与外键关系图、报表参数控件、完整性说明和验证数字均由 /api/meta 从真实数据库与 evidence/verification.json 生成。页面顶部另设三步使用引导与可操作元素图例：朱红实心为主操作、描边为次操作、行尾下划线为行内操作，左侧功能清单以竖线与箭头标出当前项，使投影第一眼即可分辨何处可点。')
+    para('终端表格在投影上读起来吃力，因此本阶段另加一个本机演示网页：python app.py --web 用标准库在 127.0.0.1 起 JSON API 与静态单页，不引入 Web 框架。网页不复制业务规则——写操作调用与终端相同的 LabService，十项报表调用相同的 run_report，因此回滚、依赖保护和统计口径天然一致；删除在网页上同样要求输入 DELETE。前端为原生 JS 三件套，无框架、无 CDN，断网可用；模式卡片（含 PK/FK/UQ/NULL 组合标记）与外键关系图、报表参数控件与多行 SQL、完整性说明和验证数字均由 /api/meta 从真实数据库与 evidence/verification.json 生成，并在增删改后自动刷新。页面针对可空字段提供「清除为 NULL」勾选、针对时间字段提供「当前北京时间」快捷填入，成员表另提供「详情」弹窗（/api/member_detail）；顶部另设三步使用引导与可操作元素图例：朱红实心为主操作、描边为次操作、行尾下划线为行内操作，左侧功能清单以竖线与箭头标出当前项，使投影第一眼即可分辨何处可点。')
     table(['端点 / 页面','终端对应','说明'],[
         ['GET / 与 web/ 三件套','python app.py 终端菜单','同一 LabService / run_report；编辑感极简版式'],
         ['GET /api/health','—','轻量健康检查，仅 SELECT 1，返回 ok/db，供部署探测'],
-        ['GET /api/meta','—','13 表字段与键、14 外键、各表计数、验证摘要，供模式图与统计条'],
-        ['GET /api/rows 与 /api/record','各表 1 查询','关键词查询与单条读取；rows 可选 limit/offset，默认仍返回全量'],
+        ['GET /api/meta','—','13 表字段与键/唯一约束、14 外键、各表计数、验证摘要，供模式图与统计条'],
+        ['GET /api/rows 与 /api/record 与 /api/member_detail','各表 1 查询；1→11 详情','关键词查询、单条读取与成员完整详情；rows 可选 limit/offset'],
         ['POST /api/rows','各表 2 新增','成员/项目/设备/成果组合新增，一个事务'],
-        ['PATCH /api/record','各表 3 修改','留空保留、NULL 清除，与终端一致'],
+        ['PATCH /api/record','各表 3 修改','留空保留、NULL 清除（网页支持勾选清除），与终端一致'],
         ['DELETE /api/record','各表 4 删除','依赖保护与整体回滚；网页同样需输入 DELETE'],
-        ['GET /api/report','1→3/4/5、2→3/4、3→1–5','十项报表，参数下拉与日期控件，附口径与真实 SQL；带 all_sql 的报表可用 all=1 列出全部']])
+        ['GET /api/report','1→3/4/5、2→3/4、3→1–5','十项报表，参数下拉与日期控件，附口径与多行 SQL；支持 all=1 与按项目筛选']])
     para('网页只监听回环地址、不含登录与权限，定位为课堂演示而非生产服务；写请求校验本机 Origin、application/json、请求长度和 JSON 对象结构。tests/test_web.py 用随机 schema 与 ephemeral 端口起真服务，覆盖元数据、静态页与路径穿越防护、查询、十项报表逐行一致、组合新增、违规整体回滚、请求校验、真实数据库连接释放与受保护删除。')
     add('image',('evidence/menu_snapshot.png','图 1：由真实终端演示日志生成的菜单与操作证据（非系统截屏）。'))
 
@@ -355,7 +356,7 @@ def report_blocks():
         ['TRUNCATE 绕过普通行触发器','定向复现后新增拒绝触发器，补回归用例；管理员改变触发器仍是权限边界。'],
         ['临时 Python 环境依赖不可见','定位旧临时环境缺失 pyvenv.cfg，重新创建独立环境再安装依赖；所有最终结果来自修复后的实际运行。'],
         ['中文文档显示','统一 Markdown/DOCX/PDF 内容源，PDF 嵌入中文字体，结合提取文字和页面渲染检查。'],
-        ['交付环境在复现时整体失效','PostgreSQL 与 Python 3.13 都已不在机器上，且 Homebrew python3 的 pip 因 libexpat 符号缺失无法建 venv；重装 PostgreSQL 18.6 并用 uv 重建 3.13.18 环境后重跑全部验证，另加 scripts/bootstrap.sh 把“挑解释器—装依赖—起库—初始化—自检”固化为一条命令。'],
+        ['交付环境在复现时整体失效','PostgreSQL 与 Python 3.13 都已不在机器上，且 Homebrew python3 的 pip 因 libexpat 符号缺失无法建 venv；重装 PostgreSQL 18（当前实测 '+v['postgresql'].split()[0]+'）并用 uv 重建 '+v['python']+' 环境后重跑全部验证，另加 scripts/bootstrap.sh 把“挑解释器—装依赖—起库—初始化—自检”固化为一条命令。'],
         ['宽报表在终端上刷屏','同项目指导关系有 40 行 8 列，原先一律竖排成三百多行，课堂演示无法阅读；改为按终端宽度自适应，优先保证数据列不被折断、其次折表头、最后才竖排，并在交互终端分页。40 行报表由约 360 行降到约 50 行。'],
         ['字段标签混入输入提示','TABLES 的字段说明原先把提示写进标签，查询表头出现“类型 faculty/student/collaborator”“每周工时 0-168”；改为 标签|类型|提示 三段结构，表头只显示标签，提示只在录入时出现。'],
         ['文档依赖只靠传递安装','build_report.py 与 verify_documents.py 直接 import PIL，却未写进 requirements-docs.txt，仅因 reportlab 恰好带上 Pillow 才能跑；已显式声明 pillow，避免换版本后文档管线突然失败。'],
