@@ -96,6 +96,16 @@ class TerminalTests(unittest.TestCase):
         self.assertIn('共 40 条记录', result.stdout)
         self.assertNotIn('操作失败', result.stdout)
 
+    def test_reassign_project_leader_from_terminal(self):
+        result = self.terminal([
+            '1', '2', '2', 'CLI_REAS', '终端换负责人', '2025-01-01', '', '100', 'active', 'F001', '0',
+            '12', 'CLI_REAS', 'F006', '4',
+            '2', '4', 'CLI_REAS', 'DELETE', '0', '0', '0'
+        ])
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn('已原子更换项目负责人', result.stdout)
+        self.assertIsNone(self.conn.execute("SELECT 1 FROM research_project WHERE project_id='CLI_REAS'").fetchone())
+
 
 if __name__ == '__main__':
     unittest.main()

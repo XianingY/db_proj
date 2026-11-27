@@ -12,6 +12,8 @@ BEGIN
     -- 同一个实验室的小型演示负载，统一事务锁避免写偏斜。
     -- 不同 schema 的同锁只会增加等待，不会改变数据。
     PERFORM pg_advisory_xact_lock(1717, 3);
+    -- 标记本事务存在未校验的写入，使延迟约束触发器每批只执行一次全库检查。
+    PERFORM set_config('lab.integrity_dirty', '1', true);
     RETURN NULL;
 END;
 $$;
@@ -174,7 +176,11 @@ $$;
 CREATE FUNCTION lab_check_deferred() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
+    IF current_setting('lab.integrity_dirty', true) IS DISTINCT FROM '1' THEN
+        RETURN NULL;
+    END IF;
     PERFORM lab_assert_integrity();
+    PERFORM set_config('lab.integrity_dirty', '0', true);
     RETURN NULL;
 END;
 $$;

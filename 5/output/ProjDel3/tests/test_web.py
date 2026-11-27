@@ -279,6 +279,61 @@ class WebServiceTests(unittest.TestCase):
         meta = meta_payload['meta']
         self.assertEqual(meta['uniques'].get('student'), ['student_number'])
         self.assertTrue(any('\n' in r['sql'] for r in meta['reports']))
+        proj_rep = next(r for r in meta['reports'] if r['name'] == 'project_status')
+        self.assertTrue(proj_rep['all_sql'])
+        ment_rep = next(r for r in meta['reports'] if r['name'] == 'shared_project_mentorship')
+        self.assertTrue(ment_rep['filter_sql'])
+
+    def test_explain_semantics_sandbox_and_atomic_workflows(self):
+        status, payload = call(self.port, '/api/explain?name=top_funded_projects')
+        self.assertEqual(status, 200, payload)
+        self.assertTrue(payload['plan'])
+
+        status, payload = call(self.port, '/api/semantics_compare')
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(payload['compare']['p001_funding']['sum_budget'], '550001.50')
+        self.assertEqual(payload['compare']['p001_funding']['sum_distinct'], '400001.00')
+
+        for case in ('delete_leader', 'fourth_user', 'truncate_authorship'):
+            status, payload = call(self.port, '/api/sandbox_check', 'POST', {'case': case})
+            self.assertEqual(status, 200, (case, payload))
+            self.assertTrue(payload['blocked'], (case, payload))
+        # Sandbox must never mutate the live schema.
+        status, payload = call(self.port, '/api/meta')
+        self.assertEqual(payload['meta']['total_tuples'], 385)
+
+        # Atomic reassign_leader and member+subtype PATCH round-trip
+        status, _ = call(self.port, '/api/rows', 'POST', {
+            'table': 'research_project',
+            'project': {'project_id': 'WEB_REAS', 'title': '原子换帅', 'start_date': '2025-01-01',
+                        'end_date': None, 'planned_duration_days': '90', 'status': 'active', 'leader_id': 'F001'},
+            'participants': []})
+        self.assertEqual(status, 200)
+        try:
+            status, payload = call(self.port, '/api/reassign_leader', 'POST',
+                                   {'project_id': 'WEB_REAS', 'new_leader_id': 'F006', 'weekly_hours': '6'})
+            self.assertEqual(status, 200, payload)
+            status, rec = call(self.port, '/api/record?table=research_project&project_id=WEB_REAS')
+            self.assertEqual(rec['record']['leader_id'], 'F006')
+        finally:
+            call(self.port, '/api/record', 'DELETE', {'table': 'research_project', 'key': ['WEB_REAS']})
+
+        status, _ = call(self.port, '/api/rows', 'POST', {
+            'table': 'lab_member',
+            'member': {'member_id': 'WEB_SUB', 'full_name': '联改学生', 'member_type': 'student', 'join_date': '2025-01-01'},
+            'subtype': {'student_number': 'WEBSUB01', 'academic_level': '硕士', 'major': '旧专业'},
+            'participations': [{'project_id': 'P007', 'project_role': '助理', 'weekly_hours': '4'}]})
+        self.assertEqual(status, 200)
+        try:
+            status, payload = call(self.port, '/api/record', 'PATCH', {
+                'table': 'lab_member', 'key': ['WEB_SUB'],
+                'changes': {'full_name': '联改后'}, 'subtype_changes': {'major': '新专业'}})
+            self.assertEqual(status, 200, payload)
+            status, detail = call(self.port, '/api/member_detail?member_id=WEB_SUB')
+            self.assertEqual(detail['detail']['member']['full_name'], '联改后')
+            self.assertEqual(detail['detail']['subtype']['major'], '新专业')
+        finally:
+            call(self.port, '/api/record', 'DELETE', {'table': 'lab_member', 'key': ['WEB_SUB']})
 
 
 if __name__ == '__main__':

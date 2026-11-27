@@ -11,7 +11,7 @@ from .display import (HARD_TOKEN_LIMIT, HEADER_WIDTH_CAP, LABELS, MIN_COLUMN_WID
                       display_rows, emit, fit_sizes, minimum_width, parse_value,
                       pretty, record_lines, table_lines, tokens, width, wrapped)
 from .reports import REPORTS, run_report, run_report_all, run_report_filtered
-from .service import LabService, TABLES, SUBCLASSES, table_counts
+from .service import LabService, TABLES, SUBCLASSES, format_db_error, table_counts
 
 
 class Terminal:
@@ -77,7 +77,7 @@ class Terminal:
         try:
             operation()
         except (ValueError,KeyError,psycopg.Error) as error:
-            detail = error.diag.message_primary if isinstance(error,psycopg.Error) else str(error)
+            detail = format_db_error(error)
             print(f'操作失败：{detail}。本次写入已回滚，原数据不变。')
 
     def crud(self,table):
@@ -168,6 +168,14 @@ class Terminal:
             print('\n【被指导成员】')
             display_rows(detail['mentees'])
 
+    def reassign_leader_view(self):
+        project_id = input('项目编号 (project_id): ').strip()
+        new_leader_id = input('新负责人教师编号 (leader_id): ').strip()
+        raw_hours = input('新负责人每周工时（如未参与该项目时使用，默认 0）: ').strip()
+        hours = parse_value(raw_hours, 'decimal') if raw_hours else 0
+        self.service.reassign_project_leader(project_id, new_leader_id, hours)
+        print('操作成功：已原子更换项目负责人（若原无参与记录已自动补齐）。')
+
     def submenu(self,title,choices):
         while True:
             print(f'\n【{title}】')
@@ -185,6 +193,8 @@ class Terminal:
                 self.crud(name)
             elif kind=='detail':
                 self.guard(self.member_detail_view)
+            elif kind=='reassign':
+                self.guard(self.reassign_leader_view)
             else:
                 self.guard(lambda:self.report(name))
 
@@ -198,7 +208,8 @@ class Terminal:
             '7':('教师资料管理','crud','faculty'), '8':('学生资料管理','crud','student'),
             '9':('合作者资料管理','crud','external_collaborator'),
             '10':('指导关系管理','crud','mentorship'),
-            '11':('成员完整详情（含子类与参与）','detail','lab_member')}
+            '11':('成员完整详情（含子类与参与）','detail','lab_member'),
+            '12':('更换项目负责人（原子事务）','reassign','research_project')}
         second = {
             '1':('设备管理','crud','equipment'), '2':('使用记录管理','crud','equipment_usage'),
             '3':('显示设备状态','report','equipment_status'),

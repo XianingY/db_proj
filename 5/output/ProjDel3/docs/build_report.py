@@ -263,6 +263,7 @@ def report_blocks():
         ['1 → 5','共同项目上的指导关系','shared_project_mentorship()（支持按项目编号可选筛选）'],
         ['1 → 6–10','参与、教师/学生/合作者资料、指导维护','对应关系与子类 CRUD'],
         ['1 → 11','成员完整详情（超类、子类、参与与指导）','LabService.member_detail(member_id)'],
+        ['1 → 12','原子更换项目负责人（自动补齐参与）','LabService.reassign_project_leader()'],
         ['2 → 1/2','设备/使用记录查询、新增、修改、删除','LabService + 使用验证/状态同步'],
         ['2 → 3','设备装置状态及分类计数','equipment_status(equipment_id)'],
         ['2 → 4','当前使用者及其进行中项目','equipment_current_users(equipment_id)'],
@@ -279,14 +280,15 @@ def report_blocks():
     table(['端点 / 页面','终端对应','说明'],[
         ['GET / 与 web/ 三件套','python app.py 终端菜单','同一 LabService / run_report；编辑感极简版式'],
         ['GET /api/health','—','轻量健康检查，仅 SELECT 1，返回 ok/db，供部署探测'],
-        ['GET /api/meta','—','13 表字段与键/唯一约束、14 外键、各表计数、验证摘要，供模式图与统计条'],
-        ['GET /api/rows 与 /api/record 与 /api/member_detail','各表 1 查询；1→11 详情','关键词查询、单条读取与成员完整详情；rows 可选 limit/offset'],
-        ['POST /api/rows','各表 2 新增','成员/项目/设备/成果组合新增，一个事务'],
-        ['PATCH /api/record','各表 3 修改','留空保留、NULL 清除（网页支持勾选清除），与终端一致'],
+        ['GET /api/meta','—','13 表字段与键/唯一约束、14 外键、各表计数、多行 SQL 变体与验证摘要'],
+        ['GET /api/rows、/api/record、/api/member_detail','各表 1 查询；1→11 详情','关键词查询、单条读取与成员完整详情；rows 可选 limit/offset'],
+        ['POST /api/rows 与 /api/reassign_leader','各表 2 新增；1→12 换负责人','成员/项目/设备/成果组合新增与原子更换负责人'],
+        ['PATCH /api/record','各表 3 修改','留空保留、NULL 清除（支持勾选），成员表支持同事务联改子类'],
         ['DELETE /api/record','各表 4 删除','依赖保护与整体回滚；网页同样需输入 DELETE'],
-        ['GET /api/report','1→3/4/5、2→3/4、3→1–5','十项报表，参数下拉与日期控件，附口径与多行 SQL；支持 all=1 与按项目筛选']])
+        ['GET /api/report、/api/explain、/api/semantics_compare、POST /api/sandbox_check','1→3/4/5、2→3/4、3→1–5','十项报表（支持 all=1 与按项目筛选）、EXPLAIN 计划、口径对照与零副作用沙箱拦截']])
     para('网页只监听回环地址、不含登录与权限，定位为课堂演示而非生产服务；写请求校验本机 Origin、application/json、请求长度和 JSON 对象结构。tests/test_web.py 用随机 schema 与 ephemeral 端口起真服务，覆盖元数据、静态页与路径穿越防护、查询、十项报表逐行一致、组合新增、违规整体回滚、请求校验、真实数据库连接释放与受保护删除。')
-    add('image',('evidence/menu_snapshot.png','图 1：由真实终端演示日志生成的菜单与操作证据（非系统截屏）。'))
+    add('image',('evidence/menu_snapshot.png','图 1：由真实终端演示日志等宽重绘的菜单与操作证据（含 CRUD 与拒删回滚）。'))
+    add('image',('evidence/web_snapshot.png','图 2：课堂演示网页真实渲染图（与终端共享 LabService 与十项报表 SQL）。'))
 
     h('5 指定查询、统计口径与实际结果')
     sub('5.1 项目与设备查询')
@@ -329,7 +331,7 @@ def report_blocks():
     sub('6.2 使用区间、状态和并发')
     para('使用区间为 [started_at, ended_at)，空结束视为正无穷，零长度区间不占用装置。两非空区间重叠当且仅当 s1<e2 且 s2<e1；同一成员同一装置禁止重叠，相邻结束/开始边界允许。人数只可能在非空开始事件增长，所以在各开始时刻 COUNT(DISTINCT member_id)，任意时刻不得超过 3。历史总记录数不受三条上限限制。')
     para('录入触发器用 Shanghai clock_timestamp 拒绝未来实际开始/结束；退役装置不接受新使用或重新开启使用。使用新增、修改、删除后，将非退役装置按未结束使用自动同步成 in_use/available；退役前必须无开放使用，退役历史保留。多条使用共同占用时，结束其中一条不会错误地把仍有人用的装置标成 available。')
-    para('所有写事务在 READ COMMITTED 下取得同一 advisory transaction lock，并对装置取得行锁。锁持有到提交/回滚，下一写事务在前一事务完成后检查最新已提交事实。代价是写入串行化；小型课堂应用选择正确性优先，不宣称具备大规模吞吐能力。TRUNCATE 单独禁止；正式部署还应避免让日常用户持有禁用/删除触发器的管理权限。')
+    para('所有写事务在 READ COMMITTED 下取得同一 advisory transaction lock，并对装置取得行锁。锁持有到提交/回滚，下一写事务在前一事务完成后检查最新已提交事实。由于 PostgreSQL 的 CONSTRAINT TRIGGER 必须为 FOR EACH ROW，本阶段在 lab_serialize_write() 中维护事务级脏标记 lab.integrity_dirty，使 lab_check_deferred() 在每批提交中只执行一次全库校验，将 385 行初始化耗时由约 160 ms 降至约 66 ms，同时保持同事务二次写入后的完整重检语义。TRUNCATE 单独禁止；正式部署还应避免让日常用户持有禁用/删除触发器的管理权限。')
     sub('6.3 自动测试与独立验证')
     category_counts = test_category_counts()
     test_rows = []
@@ -429,19 +431,31 @@ def fonts():
 
 
 def snapshots():
+    import unicodedata
     from PIL import Image,ImageDraw,ImageFont
     (font_path,index),_=fonts()
-    font=ImageFont.truetype(font_path,22,index=index)
+    font=ImageFont.truetype(font_path,20,index=index)
+    cell_w=11
+    def draw_mono_line(painter, x0, y, text, fill):
+        x=x0
+        for ch in text:
+            ch = {'╔':'[','╗':']'}.get(ch, ch)
+            w = 2 if unicodedata.east_asian_width(ch) in 'WF' else 1
+            painter.text((x, y), ch, font=font, fill=fill)
+            x += w * cell_w
     def draw(filename,lines,caption):
-        width=1400
-        canvas=Image.new('RGB',(width,85+34*len(lines)), '#14212b')
+        width=1420
+        canvas=Image.new('RGB',(width,85+32*len(lines)), '#14212b')
         painter=ImageDraw.Draw(canvas)
-        painter.text((24,18),caption,font=font,fill='#76d9b5')
+        draw_mono_line(painter, 24, 18, caption, '#76d9b5')
         for i,line in enumerate(lines):
-            painter.text((24,65+34*i),line,font=font,fill='#e8eef1')
+            draw_mono_line(painter, 24, 64+32*i, line[:120], '#e8eef1')
         canvas.save(ROOT/'evidence'/filename)
     menu=(ROOT/'evidence/menu_demo.txt').read_text().splitlines()
-    draw('menu_snapshot.png',menu[:24], '真实运行日志 · 中文三级菜单')
+    # 展示主菜单头 + 真实 CRUD 成功与拒删 F001 回滚片段
+    excerpt = menu[:10] + ['...'] + [line for line in menu[10:] if any(k in line for k in (
+        '操作成功', '操作失败', 'DEMO_STU', 'F001', '成员编号 |', '---------+', '共 1 条记录'))][:15]
+    draw('menu_snapshot.png', excerpt, '真实运行日志 · 中文三级菜单与受控事务回滚')
     text=(ROOT/'evidence/demo_reports.txt').read_text()
     start=text.index('=== top_funded_projects')
     end=text.index('=== student_publications_by_major_year',start)

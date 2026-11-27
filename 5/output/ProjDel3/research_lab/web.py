@@ -25,7 +25,7 @@ from psycopg import sql
 from .cli import parse_value
 from .db import DEFAULT_SCHEMA, connect
 from .reports import REPORTS, run_report, run_report_all, run_report_filtered
-from .service import LabService, TABLES, table_counts
+from .service import LabService, SUBCLASSES, TABLES, format_db_error, table_counts
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / 'web'
 MAX_REQUEST_BYTES = 1_000_000
@@ -169,7 +169,9 @@ def meta_payload(conn):
         'foreign_keys': foreign_keys(conn),
         'reports': [{'name': name, 'title': r['title'], 'params': list(r['params']),
                      'all': 'all_sql' in r, 'filter_param': r.get('filter_param'),
-                     'sql': textwrap.dedent(r['sql']).strip()}
+                     'sql': textwrap.dedent(r['sql']).strip(),
+                     'all_sql': textwrap.dedent(r['all_sql']).strip() if 'all_sql' in r else None,
+                     'filter_sql': textwrap.dedent(r['filter_sql']).strip() if 'filter_sql' in r else None}
                     for name, r in REPORTS.items()],
         'verification': verification,
     }
@@ -267,8 +269,7 @@ def make_handler(dsn, schema, quiet=False):
                 # input problem. Do not leak host/DSN details to the browser.
                 return self._send(503, {'ok': False,
                                        'error': '数据库暂时不可用，请稍后重试'})
-            detail = (error.diag.message_primary
-                      if isinstance(error, psycopg.Error) else str(error))
+            detail = format_db_error(error)
             return self._send(400, {'ok': False, 'error': detail})
 
         # -- verbs -----------------------------------------------------------
@@ -329,6 +330,57 @@ def make_handler(dsn, schema, quiet=False):
                         params.append(parse_value(raw, 'date') if key == 'end_before' else raw)
                     rows = run_report(conn, name, tuple(params))
                     return self._send(200, {'ok': True, 'rows': [dict(r) for r in rows]})
+                if path == '/api/explain':
+                    name = query.get('name')
+                    if name not in REPORTS:
+                        raise ValueError('未知的报表')
+                    r = REPORTS[name]
+                    filter_param = r.get('filter_param')
+                    if filter_param and (query.get(filter_param) or '').strip():
+                        stmt, bind = r['filter_sql'], (query[filter_param].strip(),)
+                    elif ((query.get('all') or '').lower() in ('1', 'true', 'yes')
+                          and 'all_sql' in r):
+                        stmt, bind = r['all_sql'], ()
+                    else:
+                        bind_list = []
+                        for key in r['params']:
+                            raw = query.get(key)
+                            if raw is None:
+                                raise ValueError(f'报表缺少参数 {key}')
+                            bind_list.append(parse_value(raw, 'date') if key == 'end_before' else raw)
+                        stmt, bind = r['sql'], tuple(bind_list)
+                    plan_rows = conn.execute('EXPLAIN (FORMAT TEXT) ' + stmt, bind).fetchall()
+                    plan = '\n'.join(row['QUERY PLAN'] for row in plan_rows)
+                    return self._send(200, {'ok': True, 'plan': plan})
+                if path == '/api/semantics_compare':
+                    p001 = conn.execute("""
+                        SELECT project_id, COALESCE(SUM(budget), 0) AS sum_budget,
+                               COALESCE(SUM(DISTINCT budget), 0) AS sum_distinct
+                        FROM research_grant WHERE project_id = 'P001' GROUP BY project_id
+                    """).fetchone()
+                    mentors = conn.execute("""
+                        SELECT ms.mentor_id, m.full_name AS mentor_name,
+                               COUNT(DISTINCT a.publication_id) AS distinct_pubs,
+                               COUNT(a.publication_id) AS naive_rows
+                        FROM mentorship ms
+                        JOIN lab_member m ON m.member_id = ms.mentor_id
+                        LEFT JOIN authorship a ON a.member_id = ms.mentee_id
+                        GROUP BY ms.mentor_id, m.full_name
+                        ORDER BY distinct_pubs DESC, ms.mentor_id ASC LIMIT 2
+                    """).fetchall()
+                    eq = conn.execute("""
+                        SELECT COUNT(*) FILTER (WHERE p.status = 'active') AS active_rows,
+                               COUNT(*) AS all_rows
+                        FROM (SELECT DISTINCT member_id FROM equipment_usage
+                              WHERE equipment_id = 'E001' AND ended_at IS NULL) cu
+                        JOIN project_participation pp ON pp.member_id = cu.member_id
+                        JOIN research_project p ON p.project_id = pp.project_id
+                    """).fetchone()
+                    return self._send(200, {'ok': True, 'compare': {
+                        'p001_funding': dict(p001) if p001 else None,
+                        'top_mentors': [dict(r) for r in mentors],
+                        'e001_projects': dict(eq) if eq else None,
+                    }})
                 raise ValueError('未知接口')
             except (RequestError, ValueError, KeyError, psycopg.Error) as error:
                 return self._fail(error)
@@ -338,6 +390,45 @@ def make_handler(dsn, schema, quiet=False):
                 self._check_origin()
                 body = self._json_body()
                 conn = self._conn()
+                path = urlparse(self.path).path
+                if path == '/api/sandbox_check':
+                    case = body.get('case')
+                    if case not in ('delete_leader', 'fourth_user', 'truncate_authorship'):
+                        raise ValueError('未知的沙箱演示用例')
+                    conn.execute('BEGIN')
+                    try:
+                        if case == 'delete_leader':
+                            LabService(conn).delete_record('lab_member', ('F001',))
+                        elif case == 'fourth_user':
+                            conn.execute("""
+                                INSERT INTO equipment_usage
+                                    (usage_id, member_id, equipment_id, device_number, started_at, ended_at, purpose)
+                                VALUES ('SANDBOX_4TH', 'S003', 'E001', 'device01',
+                                        date_trunc('second', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai') - INTERVAL '10 minutes',
+                                        NULL, '课堂沙箱并发上限演示')
+                            """)
+                            conn.execute('SET CONSTRAINTS ALL IMMEDIATE')
+                        elif case == 'truncate_authorship':
+                            conn.execute('TRUNCATE authorship')
+                        return self._send(200, {'ok': True, 'blocked': False, 'case': case,
+                                                'error': '未触发预期拦截（可能演示数据已被修改）'})
+                    except (ValueError, psycopg.Error) as err:
+                        return self._send(200, {
+                            'ok': True,
+                            'blocked': True,
+                            'case': case,
+                            'sqlstate': getattr(err, 'sqlstate', None) or 'APP',
+                            'error': format_db_error(err),
+                        })
+                    finally:
+                        conn.execute('ROLLBACK')
+                if path == '/api/reassign_leader':
+                    project_id = str(body.get('project_id') or '').strip()
+                    new_leader_id = str(body.get('new_leader_id') or '').strip()
+                    raw_hours = body.get('weekly_hours')
+                    hours = parse_value(str(raw_hours).strip(), 'decimal') if raw_hours not in (None, '') else 0
+                    LabService(conn).reassign_project_leader(project_id, new_leader_id, hours)
+                    return self._send(200, {'ok': True, 'message': '已原子更换项目负责人'})
                 table = body.get('table')
                 if table not in TABLES:
                     raise ValueError('未知的表名')
@@ -393,7 +484,34 @@ def make_handler(dsn, schema, quiet=False):
                         changes[key] = None
                         continue
                     changes[key] = parse_value(text, kind)
-                LabService(conn).update_record(table, list(body.get('key') or []), changes)
+                key_values = list(body.get('key') or [])
+                raw_sub = body.get('subtype_changes')
+                if table == 'lab_member' and raw_sub is not None:
+                    if not isinstance(raw_sub, dict):
+                        raise ValueError('subtype_changes 必须是 JSON 对象')
+                    member = LabService(conn).get_record('lab_member', key_values)
+                    if member is None:
+                        raise ValueError('未找到此记录')
+                    sub_table = SUBCLASSES[member['member_type']]
+                    sub_specs = field_specs(sub_table)
+                    sub_changes = {}
+                    for skey, sraw in raw_sub.items():
+                        if skey not in sub_specs['fields']:
+                            raise ValueError(f'子类包含未知字段：{skey}')
+                        skind = sub_specs['fields'][skey]['kind']
+                        stext = '' if sraw is None else str(sraw).strip()
+                        if stext == '':
+                            continue
+                        if stext.upper() == 'NULL':
+                            if not skind.endswith('?'):
+                                raise ValueError(f'{sub_specs["fields"][skey]["label"]} 不能为空')
+                            sub_changes[skey] = None
+                            continue
+                        sub_changes[skey] = parse_value(stext, skind)
+                    LabService(conn).update_member_with_subtype(key_values[0], changes, sub_changes)
+                    changed = bool(changes or sub_changes)
+                    return self._send(200, {'ok': True, 'message': '修改已提交' if changed else '没有修改字段'})
+                LabService(conn).update_record(table, key_values, changes)
                 return self._send(200, {'ok': True, 'message': '修改已提交' if changes else '没有修改字段'})
             except (RequestError, ValueError, KeyError, psycopg.Error) as error:
                 return self._fail(error)
